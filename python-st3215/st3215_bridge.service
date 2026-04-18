@@ -1,0 +1,15 @@
+[Unit]
+Description=ST3215 MQTT Bridge
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=biqu
+WorkingDirectory=/home/biqu/python-st3215
+ExecStart=/home/biqu/python-st3215/.venv/bin/python /home/biqu/python-st3215/st3215_bridge.py --device /dev/serial/by-id/usb-Silicon_Labs_CP2102_USB_to_UART_Bridge_Controller_0001-if00-port0 --broker 192.168.1.10 --interval 0.5
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

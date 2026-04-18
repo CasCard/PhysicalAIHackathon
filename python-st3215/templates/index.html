@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ST3215 Servo Dashboard</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #0f1117;
+    color: #e2e8f0;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    padding: 24px;
+  }
+
+  h1 { font-size: 1.6rem; font-weight: 700; color: #7dd3fc; margin-bottom: 6px; }
+  .subtitle { color: #64748b; font-size: 0.85rem; margin-bottom: 28px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 20px;
+  }
+
+  .card {
+    background: #1e2330;
+    border: 1px solid #2d3548;
+    border-radius: 14px;
+    padding: 20px;
+    transition: border-color 0.2s;
+  }
+  .card.online  { border-color: #334155; }
+  .card.offline { opacity: 0.45; border-color: #ef4444; }
+  .card.moving  { border-color: #facc15; }
+  .card.motor-mode { border-color: #a78bfa55; }
+
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .card-header-left { display: flex; align-items: center; gap: 10px; }
+  .servo-label { font-size: 1.1rem; font-weight: 700; color: #7dd3fc; }
+
+  /* Mode badge */
+  .mode-badge {
+    font-size: 0.65rem; font-weight: 700; padding: 2px 8px;
+    border-radius: 99px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .mode-badge.servo { background: #1e3a5f; color: #7dd3fc; }
+  .mode-badge.motor { background: #2d1f3d; color: #c084fc; }
+
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; }
+  .status-dot.online { background: #22c55e; }
+  .status-dot.moving { background: #facc15; animation: pulse 0.6s infinite alternate; }
+  @keyframes pulse { from { opacity:1; } to { opacity:0.3; } }
+
+  /* Live position */
+  .pos-display { text-align: center; font-size: 1.6rem; font-weight: 700; color: #f1f5f9; letter-spacing: 1px; }
+  .pos-sub     { text-align: center; font-size: 0.78rem; color: #64748b; margin-bottom: 12px; margin-top: 2px; }
+
+  /* Position bar */
+  .bar-wrap {
+    background: #0f1117; border-radius: 8px; height: 14px;
+    position: relative; margin-bottom: 6px; overflow: visible;
+  }
+  .bar-range { position: absolute; height: 100%; background: #1e40af44; border-radius: 8px; transition: left 0.3s, width 0.3s; }
+  .bar-current {
+    position: absolute; top: -3px; width: 6px; height: 20px;
+    background: #7dd3fc; border-radius: 3px;
+    transform: translateX(-50%); transition: left 0.15s;
+  }
+  .bar-labels { display: flex; justify-content: space-between; font-size: 0.68rem; color: #64748b; margin-bottom: 10px; }
+
+  /* Range info row */
+  .info-row {
+    display: flex; justify-content: space-between;
+    font-size: 0.72rem; color: #64748b; margin-bottom: 6px;
+  }
+  .info-row .val { color: #94a3b8; font-weight: 600; }
+
+  /* Mode toggle */
+  .mode-toggle {
+    display: flex; gap: 6px; margin: 12px 0;
+  }
+  .mode-btn {
+    flex: 1; padding: 7px; border: 2px solid transparent;
+    border-radius: 8px; font-size: 0.8rem; font-weight: 700;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .mode-btn.servo-btn { background: #0f1117; color: #7dd3fc; border-color: #1e3a5f; }
+  .mode-btn.servo-btn.active { background: #1e3a5f; border-color: #7dd3fc; }
+  .mode-btn.motor-btn { background: #0f1117; color: #c084fc; border-color: #2d1f3d; }
+  .mode-btn.motor-btn.active { background: #2d1f3d; border-color: #c084fc; }
+
+  /* Servo position controls */
+  .servo-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .btn {
+    width: 44px; height: 44px; border-radius: 10px; border: none;
+    font-size: 1.4rem; font-weight: 700; cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .btn:active { transform: scale(0.92); }
+  .btn-minus { background: #334155; color: #f1f5f9; }
+  .btn-minus:hover { background: #ef4444; }
+  .btn-plus  { background: #334155; color: #f1f5f9; }
+  .btn-plus:hover  { background: #22c55e; }
+  .btn-minus:disabled, .btn-plus:disabled { opacity: 0.3; cursor: not-allowed; }
+  .step-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .step-label { font-size: 0.7rem; color: #64748b; }
+  .range-slider {
+    width: 100%; -webkit-appearance: none; height: 4px;
+    border-radius: 2px; background: #334155; outline: none;
+  }
+  .range-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: #7dd3fc; cursor: pointer;
+  }
+
+  /* Motor wheel controls */
+  .motor-controls { display: none; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+  .motor-controls.active { display: flex; }
+  .motor-btns { display: flex; gap: 8px; }
+  .motor-btn-dir {
+    flex: 1; padding: 10px; border: none; border-radius: 10px;
+    font-size: 0.85rem; font-weight: 700; cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .motor-btn-dir:active { transform: scale(0.95); }
+  .btn-cw   { background: #14532d; color: #4ade80; }
+  .btn-cw:hover   { background: #16a34a; }
+  .btn-stop { background: #450a0a; color: #f87171; }
+  .btn-stop:hover { background: #dc2626; color: #fff; }
+  .btn-ccw  { background: #1e1b4b; color: #818cf8; }
+  .btn-ccw:hover  { background: #4338ca; color: #fff; }
+
+  .motor-speed-wrap { display: flex; align-items: center; gap: 10px; }
+  .motor-speed-wrap label { font-size: 0.72rem; color: #64748b; white-space: nowrap; }
+  .motor-speed-wrap .speed-val { font-size: 0.8rem; font-weight: 700; color: #c084fc; min-width: 40px; text-align: right; }
+  .motor-speed-wrap .range-slider::-webkit-slider-thumb { background: #c084fc; }
+  .mspeed-display {
+    text-align: center; font-size: 1.1rem; font-weight: 700;
+    padding: 6px; border-radius: 8px; background: #0f1117;
+    margin-bottom: 8px; letter-spacing: 1px;
+  }
+
+  /* Telemetry chips */
+  .telem { display: flex; gap: 8px; margin-bottom: 12px; }
+  .telem-chip { flex: 1; background: #0f1117; border-radius: 8px; padding: 6px 8px; text-align: center; }
+  .telem-chip .val { font-size: 0.9rem; font-weight: 700; color: #e2e8f0; }
+  .telem-chip .lbl { font-size: 0.62rem; color: #64748b; margin-top: 1px; }
+
+  /* Action buttons */
+  .action-row { display: flex; gap: 8px; margin-top: 8px; }
+  .btn-action {
+    flex: 1; padding: 7px; border: none; border-radius: 8px;
+    font-size: 0.75rem; font-weight: 600; cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .btn-action:active { transform: scale(0.95); }
+  .btn-zero    { background: #1e3a5f; color: #7dd3fc; }
+  .btn-zero:hover    { background: #2563eb; color: #fff; }
+  .btn-limits  { background: #2d1f3d; color: #c084fc; }
+  .btn-limits:hover  { background: #7c3aed; color: #fff; }
+  .btn-release { background: #3d2000; color: #fb923c; }
+  .btn-release:hover { background: #ea580c; color: #fff; }
+  .btn-engage  { background: #052e16; color: #4ade80; }
+  .btn-engage:hover  { background: #16a34a; color: #fff; }
+  .action-msg { font-size: 0.72rem; min-height: 16px; margin-top: 5px; text-align: center; color: #22c55e; }
+
+  /* E-stop */
+  #estop-btn {
+    background: #dc2626; color: #fff; border: 3px solid #ef4444;
+    border-radius: 12px; padding: 12px 28px; font-size: 1rem;
+    font-weight: 800; letter-spacing: 1px; cursor: pointer;
+    box-shadow: 0 0 20px #dc262688; transition: background 0.1s, transform 0.1s, box-shadow 0.1s;
+  }
+  #estop-btn:hover  { background: #ef4444; box-shadow: 0 0 32px #ef444499; }
+  #estop-btn:active { transform: scale(0.95); }
+  #estop-btn.stopped { background: #1e2330; border-color: #f97316; color: #f97316; box-shadow: 0 0 20px #f9731644; }
+
+  /* Global bar */
+  .global-bar {
+    display: flex; align-items: center; gap: 16px;
+    background: #1e2330; border: 1px solid #2d3548;
+    border-radius: 12px; padding: 14px 20px; margin-bottom: 24px;
+  }
+  .global-bar label { font-size: 0.85rem; color: #94a3b8; white-space: nowrap; }
+  .global-bar input[type=range] {
+    flex: 1; -webkit-appearance: none; height: 4px;
+    border-radius: 2px; background: #334155; outline: none;
+  }
+  .global-bar input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px;
+    border-radius: 50%; background: #a78bfa; cursor: pointer;
+  }
+  .global-bar .speed-val { font-size: 0.9rem; font-weight: 700; color: #a78bfa; width: 60px; text-align: right; }
+
+  hr.divider { border: none; border-top: 1px solid #2d3548; margin: 12px 0; }
+</style>
+</head>
+<body>
+
+<div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+  <h1>ST3215 Servo Dashboard</h1>
+  <button id="estop-btn" onclick="emergencyStop()">&#9632; EMERGENCY STOP</button>
+</div>
+<p class="subtitle">Click + / − to move each servo and observe its working range</p>
+
+<div class="global-bar">
+  <label>Servo Move Speed</label>
+  <input type="range" id="global-speed" min="50" max="3000" value="500" step="50">
+  <span class="speed-val" id="speed-display">500</span>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const SERVO_IDS = [1, 2, 3, 4, 5, 6];
+const MAX_POS   = 4095;
+
+const speedSlider  = document.getElementById('global-speed');
+const speedDisplay = document.getElementById('speed-display');
+speedSlider.addEventListener('input', () => speedDisplay.textContent = speedSlider.value);
+const getSpeed = () => parseInt(speedSlider.value);
+
+// Per-servo state
+const localPos  = {};
+const servoMode = {};  // 0=servo, 1=motor
+
+// ── Build cards ──────────────────────────────────────────────────────────────
+const grid = document.getElementById('grid');
+SERVO_IDS.forEach(sid => {
+  grid.innerHTML += `
+  <div class="card offline" id="card-${sid}">
+
+    <div class="card-header">
+      <div class="card-header-left">
+        <span class="servo-label">Servo ID ${sid}</span>
+        <span class="mode-badge servo" id="badge-${sid}">Servo</span>
+      </div>
+      <span class="status-dot" id="dot-${sid}"></span>
+    </div>
+
+    <!-- Live position -->
+    <div class="pos-display" id="pos-${sid}">—</div>
+    <div class="pos-sub"     id="sub-${sid}">—</div>
+
+    <!-- Position bar (always visible) -->
+    <div class="bar-wrap">
+      <div class="bar-range"   id="bar-range-${sid}"></div>
+      <div class="bar-current" id="bar-cur-${sid}" style="left:0%"></div>
+    </div>
+    <div class="bar-labels" id="bar-lbl-${sid}">
+      <span>0</span><span>2048</span><span>4095</span>
+    </div>
+
+    <!-- Range & raw info -->
+    <div class="info-row">
+      <div>Min: <span class="val" id="min-${sid}">—</span></div>
+      <div>Max: <span class="val" id="max-${sid}">—</span></div>
+      <div>Range: <span class="val" id="rng-${sid}">—</span></div>
+    </div>
+    <div class="info-row">
+      <div>Raw: <span class="val" id="raw-${sid}">—</span></div>
+      <div>Offset: <span class="val" id="ofs-${sid}">0</span></div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Mode toggle -->
+    <div class="mode-toggle">
+      <button class="mode-btn servo-btn active" id="mbtn-servo-${sid}" onclick="setMode(${sid}, 0)">⚙ Servo Mode</button>
+      <button class="mode-btn motor-btn"        id="mbtn-motor-${sid}" onclick="setMode(${sid}, 1)">⚡ Motor Mode</button>
+    </div>
+
+    <!-- Servo position controls -->
+    <div class="servo-controls" id="servo-ctrl-${sid}">
+      <button class="btn btn-minus" id="minus-${sid}" onclick="step(${sid}, -1)" disabled>−</button>
+      <div class="step-wrap">
+        <span class="step-label">Step: <b id="step-val-${sid}">50</b></span>
+        <input class="range-slider" type="range" min="1" max="500" value="50" step="1"
+               oninput="document.getElementById('step-val-${sid}').textContent=this.value"
+               id="step-${sid}">
+      </div>
+      <button class="btn btn-plus" id="plus-${sid}" onclick="step(${sid}, +1)" disabled>+</button>
+    </div>
+
+    <!-- Motor wheel controls -->
+    <div class="motor-controls" id="motor-ctrl-${sid}">
+      <div class="mspeed-display" id="mspeed-display-${sid}">Speed: 0</div>
+      <div class="motor-btns">
+        <button class="motor-btn-dir btn-ccw"  onclick="motorStep(${sid}, -1)">− CCW</button>
+        <button class="motor-btn-dir btn-stop" onclick="motorStop(${sid})">&#9632; STOP</button>
+        <button class="motor-btn-dir btn-cw"   onclick="motorStep(${sid},  1)">CW +</button>
+      </div>
+      <div class="motor-speed-wrap">
+        <label>Step</label>
+        <input class="range-slider" type="range" min="10" max="500" value="50" step="10"
+               id="mstep-${sid}"
+               oninput="document.getElementById('mstep-val-${sid}').textContent=this.value">
+        <span class="speed-val" id="mstep-val-${sid}">50</span>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Telemetry -->
+    <div class="telem">
+      <div class="telem-chip"><div class="val" id="volt-${sid}">—</div><div class="lbl">Voltage (V)</div></div>
+      <div class="telem-chip"><div class="val" id="temp-${sid}">—</div><div class="lbl">Temp (°C)</div></div>
+      <div class="telem-chip"><div class="val" id="mov-${sid}">—</div><div class="lbl">Moving</div></div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="action-row">
+      <button class="btn-action btn-zero"   onclick="setZero(${sid})">Set as Zero</button>
+      <button class="btn-action btn-limits" onclick="clearLimits(${sid})">Clear Limits</button>
+    </div>
+    <div class="action-row">
+      <button class="btn-action btn-release" id="release-${sid}" onclick="releaseTorque(${sid})">&#128275; Release Motor</button>
+      <button class="btn-action btn-engage"  id="engage-${sid}"  onclick="engageTorque(${sid})" style="display:none">&#128274; Engage Motor</button>
+    </div>
+    <div class="action-msg" id="msg-${sid}"></div>
+  </div>`;
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function showMsg(sid, text, color = '#22c55e') {
+  const el = document.getElementById(`msg-${sid}`);
+  el.style.color  = color;
+  el.textContent  = text;
+  setTimeout(() => el.textContent = '', 3500);
+}
+
+function updateBar(sid, rawPos, minRaw, maxRaw) {
+  const pct = rawPos / MAX_POS * 100;
+  document.getElementById(`bar-cur-${sid}`).style.left = pct + '%';
+  if (minRaw !== null && maxRaw !== null) {
+    const el = document.getElementById(`bar-range-${sid}`);
+    el.style.left  = (minRaw / MAX_POS * 100) + '%';
+    el.style.width = ((maxRaw - minRaw) / MAX_POS * 100) + '%';
+  }
+}
+
+// ── Mode switch ───────────────────────────────────────────────────────────────
+async function setMode(sid, mode) {
+  const res = await fetch('/api/set_mode', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid, mode })
+  });
+  const d = await res.json();
+  if (!d.ok) { showMsg(sid, 'Mode switch failed', '#ef4444'); return; }
+
+  applyModeUI(sid, mode);
+  showMsg(sid, mode === 0 ? 'Switched to Servo mode' : 'Switched to Motor mode',
+              mode === 0 ? '#7dd3fc' : '#c084fc');
+}
+
+function applyModeUI(sid, mode) {
+  servoMode[sid] = mode;
+  if (mode === 1) updateMotorDisplay(sid, motorSpeed[sid] ?? 0);
+  const isMotor = mode === 1;
+
+  document.getElementById(`servo-ctrl-${sid}`).style.display = isMotor ? 'none'  : '';
+  document.getElementById(`motor-ctrl-${sid}`).classList.toggle('active', isMotor);
+
+  document.getElementById(`mbtn-servo-${sid}`).classList.toggle('active', !isMotor);
+  document.getElementById(`mbtn-motor-${sid}`).classList.toggle('active',  isMotor);
+
+  const badge = document.getElementById(`badge-${sid}`);
+  badge.textContent  = isMotor ? 'Motor' : 'Servo';
+  badge.className    = `mode-badge ${isMotor ? 'motor' : 'servo'}`;
+
+  const card = document.getElementById(`card-${sid}`);
+  if (isMotor) card.classList.add('motor-mode');
+  else         card.classList.remove('motor-mode');
+
+  // Bar labels differ: motor mode shows position wrapping note
+  document.getElementById(`bar-lbl-${sid}`).innerHTML = isMotor
+    ? '<span>0</span><span style="color:#c084fc">position (wraps)</span><span>4095</span>'
+    : '<span>0</span><span>2048</span><span>4095</span>';
+}
+
+// ── Motor speed state ─────────────────────────────────────────────────────────
+const motorSpeed = {};  // {sid: current_speed}
+
+function updateMotorDisplay(sid, speed) {
+  motorSpeed[sid] = speed;
+  const el  = document.getElementById(`mspeed-display-${sid}`);
+  const abs = Math.abs(speed);
+  if (speed === 0) {
+    el.style.color = '#64748b';
+    el.textContent = 'Speed: 0  (stopped)';
+  } else if (speed > 0) {
+    el.style.color = '#4ade80';
+    el.textContent = `Speed: +${abs}  ↻ CW`;
+  } else {
+    el.style.color = '#818cf8';
+    el.textContent = `Speed: −${abs}  ↺ CCW`;
+  }
+}
+
+function sendMotorSpeed(sid, speed) {
+  speed = Math.max(-3400, Math.min(3400, speed));
+  updateMotorDisplay(sid, speed);
+  fetch('/api/motor_speed', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid, speed })
+  });
+}
+
+function motorStep(sid, dir) {
+  const step    = parseInt(document.getElementById(`mstep-${sid}`).value);
+  const current = motorSpeed[sid] ?? 0;
+  sendMotorSpeed(sid, current + dir * step);
+}
+
+function motorStop(sid) {
+  sendMotorSpeed(sid, 0);
+}
+
+// ── Servo step / move ─────────────────────────────────────────────────────────
+function step(sid, dir) {
+  const stepVal = parseInt(document.getElementById(`step-${sid}`).value);
+  const cur     = localPos[sid] ?? 0;
+  sendMove(sid, cur + dir * stepVal);
+}
+
+async function sendMove(sid, calPos) {
+  localPos[sid] = calPos;
+  try {
+    await fetch('/api/move', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ id: sid, pos: calPos, speed: getSpeed() })
+    });
+  } catch(e) { console.error('Move failed', e); }
+}
+
+// ── Emergency stop ────────────────────────────────────────────────────────────
+async function emergencyStop() {
+  const btn = document.getElementById('estop-btn');
+  btn.textContent = '⚠ STOPPED — Click to Resume';
+  btn.classList.add('stopped');
+  btn.onclick = resumeAll;
+  await fetch('/api/estop', { method: 'POST' });
+}
+
+async function resumeAll() {
+  const btn = document.getElementById('estop-btn');
+  btn.textContent = '■ EMERGENCY STOP';
+  btn.classList.remove('stopped');
+  btn.onclick = emergencyStop;
+}
+
+// ── Torque release / engage ───────────────────────────────────────────────────
+async function releaseTorque(sid) {
+  await fetch('/api/torque', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid, enable: false })
+  });
+  document.getElementById(`release-${sid}`).style.display = 'none';
+  document.getElementById(`engage-${sid}`).style.display  = '';
+  document.getElementById(`minus-${sid}`).disabled = true;
+  document.getElementById(`plus-${sid}`).disabled  = true;
+  showMsg(sid, 'Motor released — free to move manually', '#fb923c');
+}
+
+async function engageTorque(sid) {
+  await fetch('/api/torque', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid, enable: true })
+  });
+  document.getElementById(`engage-${sid}`).style.display  = 'none';
+  document.getElementById(`release-${sid}`).style.display = '';
+  document.getElementById(`minus-${sid}`).disabled = false;
+  document.getElementById(`plus-${sid}`).disabled  = false;
+  showMsg(sid, 'Motor engaged', '#22c55e');
+}
+
+// ── Set zero / clear limits ───────────────────────────────────────────────────
+async function setZero(sid) {
+  const res = await fetch('/api/set_zero', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid })
+  });
+  const d = await res.json();
+  if (d.ok) { localPos[sid] = 0; showMsg(sid, `Zero set (raw=${d.offset_raw})`); }
+  else       showMsg(sid, `Failed: ${d.error}`, '#ef4444');
+}
+
+async function clearLimits(sid) {
+  const res = await fetch('/api/clear_limits', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid })
+  });
+  const d = await res.json();
+  if (d.ok) showMsg(sid, 'Angle limits cleared (0 – 4095)');
+  else      showMsg(sid, 'Failed to clear limits', '#ef4444');
+}
+
+// ── Telemetry poll ────────────────────────────────────────────────────────────
+async function poll() {
+  try {
+    const res  = await fetch('/api/status');
+    const data = await res.json();
+
+    SERVO_IDS.forEach(sid => {
+      const s    = data[sid];
+      const card = document.getElementById(`card-${sid}`);
+      const dot  = document.getElementById(`dot-${sid}`);
+
+      if (!s.online) {
+        card.className = 'card offline';
+        dot.className  = 'status-dot';
+        document.getElementById(`minus-${sid}`).disabled = true;
+        document.getElementById(`plus-${sid}`).disabled  = true;
+        return;
+      }
+
+      // Sync mode UI from hardware
+      if (servoMode[sid] !== s.mode) applyModeUI(sid, s.mode);
+
+      const isMotor = s.mode === 1;
+      card.className = `card online${s.moving ? ' moving' : ''}${isMotor ? ' motor-mode' : ''}`;
+      dot.className  = s.moving ? 'status-dot moving' : 'status-dot online';
+
+      if (!isMotor) {
+        document.getElementById(`minus-${sid}`).disabled = false;
+        document.getElementById(`plus-${sid}`).disabled  = false;
+      }
+
+      // Position display
+      const cal = s.pos ?? 0;
+      localPos[sid] = cal;
+      document.getElementById(`pos-${sid}`).textContent = cal;
+      document.getElementById(`sub-${sid}`).textContent =
+        `raw: ${s.raw ?? '—'}  |  ${(s.raw / MAX_POS * 270).toFixed(1)}°`;
+
+      // Bar always uses raw (0-4095 physical)
+      const minRaw = (s.min_seen ?? 0) + (s.offset ?? 0);
+      const maxRaw = (s.max_seen ?? 0) + (s.offset ?? 0);
+      updateBar(sid, s.raw ?? 0, minRaw, maxRaw);
+
+      // Range info
+      document.getElementById(`min-${sid}`).textContent = s.min_seen ?? '—';
+      document.getElementById(`max-${sid}`).textContent = s.max_seen ?? '—';
+      document.getElementById(`raw-${sid}`).textContent = s.raw      ?? '—';
+      document.getElementById(`ofs-${sid}`).textContent = s.offset   ?? 0;
+      const span = (s.min_seen !== null && s.max_seen !== null) ? s.max_seen - s.min_seen : null;
+      document.getElementById(`rng-${sid}`).textContent =
+        span !== null ? `${span} (${(span / MAX_POS * 270).toFixed(1)}°)` : '—';
+
+      // Telemetry
+      document.getElementById(`volt-${sid}`).textContent = s.volt   ?? '—';
+      document.getElementById(`temp-${sid}`).textContent = s.temp   ?? '—';
+      document.getElementById(`mov-${sid}`).textContent  = s.moving ? 'Yes' : 'No';
+    });
+  } catch(e) { console.warn('Poll error', e); }
+  setTimeout(poll, 200);
+}
+
+poll();
+</script>
+</body>
+</html>
