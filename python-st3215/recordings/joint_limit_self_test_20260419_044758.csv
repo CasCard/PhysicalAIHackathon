@@ -1,0 +1,6 @@
+servo_id,start_pos,low_end,low_reason,high_end,high_reason,travel,travel_deg,max_load,temp_c,voltage_v
+1,2790,2782,stall,4095,raw_boundary,1313,86.57,1060,37,7.0
+2,3245,0,raw_boundary,3582,stall,3582,236.18,1352,28,6.8
+3,1241,1,stall,1706,stall,1705,112.42,1352,25,6.8
+4,1616,1,stall,2041,stall,2040,134.51,1356,31,6.9
+5,3048,2042,stall,4095,raw_boundary,2053,135.36,1120,29,7.2

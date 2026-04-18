@@ -174,6 +174,8 @@
   .btn-action:active { transform: scale(0.95); }
   .btn-zero    { background: #1e3a5f; color: #7dd3fc; }
   .btn-zero:hover    { background: #2563eb; color: #fff; }
+  .btn-middle  { background: #143a2a; color: #6ee7b7; }
+  .btn-middle:hover  { background: #059669; color: #fff; }
   .btn-limits  { background: #2d1f3d; color: #c084fc; }
   .btn-limits:hover  { background: #7c3aed; color: #fff; }
   .btn-release { background: #3d2000; color: #fb923c; }
@@ -181,6 +183,33 @@
   .btn-engage  { background: #052e16; color: #4ade80; }
   .btn-engage:hover  { background: #16a34a; color: #fff; }
   .action-msg { font-size: 0.72rem; min-height: 16px; margin-top: 5px; text-align: center; color: #22c55e; }
+
+  /* Recording */
+  .rec-header {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.75rem; font-weight: 700; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .rec-count { font-size: 0.75rem; color: #f87171; font-weight: 700; }
+  .btn-rec-start { background: #450a0a; color: #f87171; }
+  .btn-rec-start:hover { background: #dc2626; color: #fff; }
+  .btn-rec-stop  { background: #1a1a1a; color: #f87171; border: 2px solid #f87171; animation: recpulse 1s infinite alternate; }
+  .btn-rec-dl    { background: #1e3a5f; color: #7dd3fc; }
+  .btn-rec-dl:hover { background: #2563eb; color: #fff; }
+  .btn-apply-rec { background: #14532d; color: #4ade80; }
+  .btn-apply-rec:hover { background: #16a34a; color: #fff; }
+  .btn-load-csv  { background: #1e3a5f; color: #7dd3fc; }
+  .btn-load-csv:hover  { background: #2563eb; color: #fff; }
+  .btn-set-manual { background: #2d2000; color: #fbbf24; }
+  .btn-set-manual:hover { background: #b45309; color: #fff; }
+  .manual-row { display: flex; gap: 6px; align-items: center; }
+  .manual-input {
+    flex: 1; background: #0f1117; border: 1px solid #334155;
+    border-radius: 6px; padding: 6px 8px; color: #e2e8f0;
+    font-size: 0.8rem; width: 0; min-width: 0;
+  }
+  @keyframes recpulse { from { opacity: 1; } to { opacity: 0.5; } }
+  .rec-status { font-size: 0.7rem; color: #64748b; min-height: 14px; margin-top: 4px; }
 
   /* E-stop */
   #estop-btn {
@@ -209,8 +238,29 @@
     border-radius: 50%; background: #a78bfa; cursor: pointer;
   }
   .global-bar .speed-val { font-size: 0.9rem; font-weight: 700; color: #a78bfa; width: 60px; text-align: right; }
+  .play-panel {
+    background: #18202a; border: 1px solid #2d3548; border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 22px;
+  }
+  .play-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px; }
+  .play-title { font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; color: #93c5fd; text-transform: uppercase; }
+  .play-status { font-size: 0.78rem; color: #94a3b8; min-height: 18px; }
+  .play-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .play-btn {
+    border: 1px solid #334155; border-radius: 10px; padding: 10px 12px;
+    background: linear-gradient(180deg, #162130 0%, #101722 100%);
+    color: #e2e8f0; cursor: pointer; text-align: left;
+    transition: border-color 0.15s, transform 0.1s, background 0.15s;
+  }
+  .play-btn:hover { border-color: #60a5fa; background: linear-gradient(180deg, #1a2940 0%, #111c2d 100%); }
+  .play-btn:active { transform: scale(0.98); }
+  .play-btn strong { display:block; font-size:0.88rem; margin-bottom:4px; }
+  .play-btn span { display:block; font-size:0.72rem; color:#94a3b8; line-height:1.3; }
+  .play-stop { background: linear-gradient(180deg, #351515 0%, #221010 100%); }
+  .play-stop:hover { border-color: #f87171; background: linear-gradient(180deg, #451717 0%, #2a1010 100%); }
 
   hr.divider { border: none; border-top: 1px solid #2d3548; margin: 12px 0; }
+  .mode-toggle, .motor-controls, .limit-section, .record-section, .advanced-actions { display: none !important; }
 
   /* Joint limits */
   .limit-header {
@@ -266,12 +316,32 @@
   <h1>ST3215 Servo Dashboard</h1>
   <button id="estop-btn" onclick="emergencyStop()">&#9632; EMERGENCY STOP</button>
 </div>
-<p class="subtitle">Click + / − to move each servo and observe its working range</p>
+<p class="subtitle">Incremental step control with fixed joint limits for servos 1-5</p>
 
 <div class="global-bar">
   <label>Servo Move Speed</label>
   <input type="range" id="global-speed" min="50" max="3000" value="500" step="50">
   <span class="speed-val" id="speed-display">500</span>
+</div>
+
+<div class="play-panel">
+  <div class="play-head">
+    <div class="play-title">SO100 Plays</div>
+    <div class="play-status" id="play-status">Idle</div>
+  </div>
+  <div class="play-grid">
+    <button class="play-btn" onclick="runPlay('neutral')"><strong>Neutral Pose</strong><span>Move all joints to a safe centered stance.</span></button>
+    <button class="play-btn" onclick="runPlay('look')"><strong>Look Around</strong><span>Base, shoulder and wrist scan left and right.</span></button>
+    <button class="play-btn" onclick="runPlay('wave')"><strong>Wave Hello</strong><span>Lift the arm and animate the wrist with servo 6.</span></button>
+    <button class="play-btn" onclick="runPlay('reach')"><strong>Reach Sweep</strong><span>Extend outward, sweep, then retract to neutral.</span></button>
+    <button class="play-btn" onclick="runPlay('nod')"><strong>Nod Yes</strong><span>Shoulder and elbow pulse in a compact yes-like motion.</span></button>
+    <button class="play-btn" onclick="runPlay('scan')"><strong>Perimeter Scan</strong><span>Pan the base through a wider left-right inspection arc.</span></button>
+    <button class="play-btn" onclick="runPlay('pickup')"><strong>Pick And Place</strong><span>Dip down, lift up, and place across the workspace.</span></button>
+    <button class="play-btn" onclick="runPlay('spiral')"><strong>Spiral Trace</strong><span>Walk the wrist through an inward-outward circular trace.</span></button>
+    <button class="play-btn" onclick="runPlay('bow')"><strong>Bow</strong><span>Fold forward and return with a gentle wrist finish.</span></button>
+    <button class="play-btn" onclick="runPlay('drum')"><strong>Desk Drum</strong><span>Tap two alternating down-up beats near center.</span></button>
+    <button class="play-btn play-stop" onclick="stopPlay()"><strong>Stop Play</strong><span>Cancel the active sequence immediately.</span></button>
+  </div>
 </div>
 
 <div class="grid" id="grid"></div>
@@ -288,6 +358,113 @@ const getSpeed = () => parseInt(speedSlider.value);
 // Per-servo state
 const localPos  = {};
 const servoMode = {};  // 0=servo, 1=motor
+const lastStatus = {};
+let playToken = 0;
+
+const PLAY_POSES = {
+  neutral: {1: 3200, 2: 2500, 3: 850, 4: 1150, 5: 2550, 6: 3600},
+  ready:   {1: 3450, 2: 2900, 3: 1050, 4: 1350, 5: 2850, 6: 3720},
+  reach:   {1: 3600, 2: 3200, 3: 1280, 4: 1650, 5: 3100, 6: 3450},
+  left:    {1: 3000, 2: 2850, 3: 1020, 4: 1380, 5: 2920, 6: 3320},
+  right:   {1: 3840, 2: 2850, 3: 1020, 4: 1380, 5: 2920, 6: 3920},
+  waveA:   {1: 3440, 2: 3020, 3: 1180, 4: 1510, 5: 3060, 6: 3340},
+  waveB:   {1: 3440, 2: 3020, 3: 1180, 4: 1510, 5: 3060, 6: 3920},
+  tuck:    {1: 3140, 2: 2140, 3: 620, 4: 940, 5: 2350, 6: 3600},
+  nodUp:   {1: 3200, 2: 2660, 3: 980, 4: 1260, 5: 2720, 6: 3600},
+  nodDown: {1: 3200, 2: 2280, 3: 720, 4: 1000, 5: 2440, 6: 3600},
+  farLeft: {1: 2860, 2: 2760, 3: 980, 4: 1360, 5: 2860, 6: 3280},
+  farRight:{1: 4020, 2: 2760, 3: 980, 4: 1360, 5: 2860, 6: 3980},
+  pickLow: {1: 3320, 2: 2060, 3: 560, 4: 900, 5: 2240, 6: 3520},
+  liftMid: {1: 3440, 2: 2860, 3: 1080, 4: 1450, 5: 2980, 6: 3520},
+  placeRight: {1: 3860, 2: 2580, 3: 940, 4: 1320, 5: 2860, 6: 3820},
+  spiralOuterL: {1: 3020, 2: 3000, 3: 1180, 4: 1560, 5: 3050, 6: 3340},
+  spiralOuterR: {1: 3740, 2: 3000, 3: 1180, 4: 1560, 5: 3050, 6: 3880},
+  spiralInnerR: {1: 3560, 2: 2520, 3: 860, 4: 1180, 5: 2620, 6: 3900},
+  spiralInnerL: {1: 3200, 2: 2520, 3: 860, 4: 1180, 5: 2620, 6: 3340},
+  bowLow:  {1: 3200, 2: 2140, 3: 620, 4: 900, 5: 2260, 6: 3600},
+  bowRise: {1: 3200, 2: 2720, 3: 1000, 4: 1320, 5: 2820, 6: 3720},
+  drumLeft:{1: 3140, 2: 2200, 3: 640, 4: 920, 5: 2300, 6: 3480},
+  drumRight:{1: 3460, 2: 2200, 3: 640, 4: 920, 5: 2300, 6: 3760},
+};
+
+const PLAY_SEQUENCES = {
+  neutral: [
+    { pose: 'neutral', hold: 500, label: 'Neutral pose' },
+  ],
+  look: [
+    { pose: 'neutral', hold: 400, label: 'Centering arm' },
+    { pose: 'left', hold: 700, label: 'Looking left' },
+    { pose: 'right', hold: 900, label: 'Looking right' },
+    { pose: 'left', hold: 700, label: 'Looking left again' },
+    { pose: 'neutral', hold: 500, label: 'Returning to center' },
+  ],
+  wave: [
+    { pose: 'ready', hold: 700, label: 'Lifting to ready' },
+    { pose: 'waveA', hold: 350, label: 'Wave 1A' },
+    { pose: 'waveB', hold: 350, label: 'Wave 1B' },
+    { pose: 'waveA', hold: 350, label: 'Wave 2A' },
+    { pose: 'waveB', hold: 350, label: 'Wave 2B' },
+    { pose: 'ready', hold: 500, label: 'Settling' },
+    { pose: 'neutral', hold: 500, label: 'Back to neutral' },
+  ],
+  reach: [
+    { pose: 'neutral', hold: 400, label: 'Centering arm' },
+    { pose: 'reach', hold: 900, label: 'Reaching out' },
+    { pose: 'left', hold: 700, label: 'Sweeping left' },
+    { pose: 'right', hold: 700, label: 'Sweeping right' },
+    { pose: 'tuck', hold: 700, label: 'Retracting' },
+    { pose: 'neutral', hold: 500, label: 'Back to neutral' },
+  ],
+  nod: [
+    { pose: 'neutral', hold: 300, label: 'Centering arm' },
+    { pose: 'nodUp', hold: 300, label: 'Nod up' },
+    { pose: 'nodDown', hold: 320, label: 'Nod down' },
+    { pose: 'nodUp', hold: 300, label: 'Nod up again' },
+    { pose: 'nodDown', hold: 320, label: 'Nod down again' },
+    { pose: 'neutral', hold: 400, label: 'Settling to neutral' },
+  ],
+  scan: [
+    { pose: 'neutral', hold: 350, label: 'Centering arm' },
+    { pose: 'farLeft', hold: 800, label: 'Scanning far left' },
+    { pose: 'left', hold: 500, label: 'Tracking left sector' },
+    { pose: 'right', hold: 650, label: 'Tracking right sector' },
+    { pose: 'farRight', hold: 800, label: 'Scanning far right' },
+    { pose: 'neutral', hold: 500, label: 'Returning to center' },
+  ],
+  pickup: [
+    { pose: 'neutral', hold: 350, label: 'Centering arm' },
+    { pose: 'pickLow', hold: 850, label: 'Approaching pickup' },
+    { pose: 'liftMid', hold: 700, label: 'Lifting load' },
+    { pose: 'placeRight', hold: 850, label: 'Moving to place position' },
+    { pose: 'liftMid', hold: 500, label: 'Clearing placement' },
+    { pose: 'neutral', hold: 500, label: 'Back to neutral' },
+  ],
+  spiral: [
+    { pose: 'neutral', hold: 300, label: 'Centering arm' },
+    { pose: 'spiralOuterL', hold: 450, label: 'Outer left arc' },
+    { pose: 'spiralOuterR', hold: 450, label: 'Outer right arc' },
+    { pose: 'spiralInnerR', hold: 450, label: 'Inner right arc' },
+    { pose: 'spiralInnerL', hold: 450, label: 'Inner left arc' },
+    { pose: 'neutral', hold: 450, label: 'Closing spiral' },
+  ],
+  bow: [
+    { pose: 'neutral', hold: 300, label: 'Centering arm' },
+    { pose: 'bowLow', hold: 850, label: 'Bowing forward' },
+    { pose: 'bowRise', hold: 650, label: 'Rising' },
+    { pose: 'neutral', hold: 500, label: 'Back to neutral' },
+  ],
+  drum: [
+    { pose: 'neutral', hold: 300, label: 'Centering arm' },
+    { pose: 'drumLeft', hold: 240, label: 'Left tap' },
+    { pose: 'neutral', hold: 180, label: 'Recover center' },
+    { pose: 'drumRight', hold: 240, label: 'Right tap' },
+    { pose: 'neutral', hold: 180, label: 'Recover center' },
+    { pose: 'drumLeft', hold: 240, label: 'Left tap again' },
+    { pose: 'neutral', hold: 180, label: 'Recover center' },
+    { pose: 'drumRight', hold: 240, label: 'Right tap again' },
+    { pose: 'neutral', hold: 450, label: 'Settling to neutral' },
+  ],
+};
 
 // ── Build cards ──────────────────────────────────────────────────────────────
 const grid = document.getElementById('grid');
@@ -327,7 +504,7 @@ SERVO_IDS.forEach(sid => {
       <div>Offset: <span class="val" id="ofs-${sid}">0</span></div>
     </div>
 
-    <hr class="divider">
+    <hr class="divider advanced-actions">
 
     <!-- Mode toggle -->
     <div class="mode-toggle">
@@ -384,12 +561,13 @@ SERVO_IDS.forEach(sid => {
     </div>
 
     <!-- Joint travel limits -->
+    <div class="limit-section">
     <hr class="divider">
     <div class="limit-header">
       <span>Joint Travel Limits</span>
       <div style="display:flex;gap:6px;align-items:center;">
         <label class="wrap-toggle" title="Enable if your range crosses the 0/4095 boundary">
-          <input type="checkbox" id="wrap-${sid}" onchange="updateLimitBar(${sid},null,null,null)">
+          <input type="checkbox" id="wrap-${sid}" onchange="updateLimitBar(${sid},null,null,null)" disabled>
           <span>Wraps 0/4095</span>
         </label>
         <button class="btn-clear-limits" onclick="clearJointLimits(${sid})">✕ Clear All</button>
@@ -414,11 +592,47 @@ SERVO_IDS.forEach(sid => {
       <div class="limit-bar-active" id="lim-bar-${sid}"></div>
       <div class="limit-bar-pos"    id="lim-pos-${sid}"></div>
     </div>
+    </div>
+
+    <!-- Recording -->
+    <div class="record-section">
+    <hr class="divider">
+    <div class="rec-header">
+      <span>&#9679; Range Recording</span>
+      <span class="rec-count" id="rec-count-${sid}"></span>
+    </div>
+    <div class="action-row">
+      <button class="btn-action btn-rec-start" id="rec-start-${sid}" onclick="startRecord(${sid})">&#9679; Start Recording</button>
+      <button class="btn-action btn-rec-stop"  id="rec-stop-${sid}"  onclick="stopRecord(${sid})"  style="display:none">&#9632; Stop</button>
+      <button class="btn-action btn-rec-dl"    id="rec-dl-${sid}"    onclick="downloadRecord(${sid})" style="display:none">&#11015; CSV</button>
+    </div>
+    <div class="action-row">
+      <button class="btn-action btn-apply-rec" id="rec-apply-${sid}" onclick="applyRecording(${sid})" style="display:none">&#10003; Apply Limits from Recording</button>
+    </div>
+    <div class="action-row" style="gap:4px;">
+      <input type="file" id="csv-file-${sid}" accept=".csv" style="display:none" onchange="applyFromCSV(${sid})">
+      <button class="btn-action btn-load-csv" onclick="document.getElementById('csv-file-${sid}').click()">&#128196; Load CSV</button>
+      <button class="btn-action btn-set-manual" onclick="showManualLimits(${sid})">&#9998; Manual</button>
+    </div>
+    <div id="manual-limits-${sid}" style="display:none; margin-top:8px;">
+      <div class="manual-row">
+        <input class="manual-input" type="number" id="man-min-${sid}" placeholder="Min raw" min="0" max="4095">
+        <input class="manual-input" type="number" id="man-max-${sid}" placeholder="Max raw" min="0" max="4095">
+        <label class="wrap-toggle" style="flex-shrink:0">
+          <input type="checkbox" id="man-wrap-${sid}"> Wrap
+        </label>
+        <button class="btn-action btn-apply-rec" style="flex-shrink:0;width:auto;padding:6px 10px;" onclick="applyManual(${sid})">Apply</button>
+      </div>
+    </div>
+    <div class="rec-status" id="rec-status-${sid}"></div>
+    </div>
 
     <!-- Action buttons -->
+    <div class="advanced-actions">
     <hr class="divider">
     <div class="action-row">
       <button class="btn-action btn-zero"   onclick="setZero(${sid})">Set as Zero</button>
+      <button class="btn-action btn-middle" onclick="defineMiddle(${sid})">Define Middle</button>
       <button class="btn-action btn-limits" onclick="clearLimits(${sid})">Clear HW Limits</button>
     </div>
     <div class="action-row">
@@ -426,6 +640,7 @@ SERVO_IDS.forEach(sid => {
       <button class="btn-action btn-engage"  id="engage-${sid}"  onclick="engageTorque(${sid})" style="display:none">&#128274; Engage Motor</button>
     </div>
     <div class="action-msg" id="msg-${sid}"></div>
+    </div>
   </div>`;
 });
 
@@ -467,11 +682,14 @@ function applyModeUI(sid, mode) {
   if (mode === 1) updateMotorDisplay(sid, motorSpeed[sid] ?? 0);
   const isMotor = mode === 1;
 
-  document.getElementById(`servo-ctrl-${sid}`).style.display = isMotor ? 'none'  : '';
-  document.getElementById(`motor-ctrl-${sid}`).classList.toggle('active', isMotor);
-
-  document.getElementById(`mbtn-servo-${sid}`).classList.toggle('active', !isMotor);
-  document.getElementById(`mbtn-motor-${sid}`).classList.toggle('active',  isMotor);
+  const servoCtrl = document.getElementById(`servo-ctrl-${sid}`);
+  const motorCtrl = document.getElementById(`motor-ctrl-${sid}`);
+  const servoBtn = document.getElementById(`mbtn-servo-${sid}`);
+  const motorBtn = document.getElementById(`mbtn-motor-${sid}`);
+  if (servoCtrl) servoCtrl.style.display = isMotor ? 'none' : '';
+  if (motorCtrl) motorCtrl.classList.toggle('active', isMotor);
+  if (servoBtn) servoBtn.classList.toggle('active', !isMotor);
+  if (motorBtn) motorBtn.classList.toggle('active', isMotor);
 
   const badge = document.getElementById(`badge-${sid}`);
   badge.textContent  = isMotor ? 'Motor' : 'Servo';
@@ -524,6 +742,65 @@ function motorStep(sid, dir) {
 
 function motorStop(sid) {
   sendMotorSpeed(sid, 0);
+}
+
+function setPlayStatus(text, color = '#94a3b8') {
+  const el = document.getElementById('play-status');
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = color;
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function clampRawToStatus(sid, raw) {
+  const s = lastStatus[sid];
+  if (!s) return raw;
+  const lo = typeof s.sw_min === 'number' ? s.sw_min : 0;
+  const hi = typeof s.sw_max === 'number' ? s.sw_max : MAX_POS;
+  return Math.max(lo, Math.min(hi, raw));
+}
+
+async function sendRawMove(sid, rawPos, speed = getSpeed()) {
+  const s = lastStatus[sid] || {};
+  const raw = clampRawToStatus(sid, rawPos);
+  const offset = typeof s.offset === 'number' ? s.offset : 0;
+  await sendMove(sid, raw - offset, speed);
+}
+
+async function applyPoseRaw(poseName, speed = getSpeed(), staggerMs = 90) {
+  const pose = PLAY_POSES[poseName];
+  if (!pose) return;
+  for (const sid of Object.keys(pose).map(Number)) {
+    await sendRawMove(sid, pose[sid], speed);
+    await sleep(staggerMs);
+  }
+}
+
+async function runPlay(name) {
+  const sequence = PLAY_SEQUENCES[name];
+  if (!sequence) return;
+  const token = ++playToken;
+  setPlayStatus(`Running: ${name}`, '#93c5fd');
+  try {
+    for (const step of sequence) {
+      if (token !== playToken) return;
+      setPlayStatus(step.label, '#93c5fd');
+      await applyPoseRaw(step.pose);
+      await sleep(step.hold);
+    }
+    if (token === playToken) setPlayStatus(`Completed: ${name}`, '#6ee7b7');
+  } catch (err) {
+    console.error('Play failed', err);
+    setPlayStatus(`Play failed: ${name}`, '#f87171');
+  }
+}
+
+function stopPlay() {
+  playToken += 1;
+  setPlayStatus('Play stopped', '#fbbf24');
 }
 
 // ── Servo step / move ─────────────────────────────────────────────────────────
@@ -659,6 +936,108 @@ function updateLimitBar(sid, raw, swMin, swMax) {
   }
 }
 
+async function startRecord(sid) {
+  const res = await fetch('/api/start_record', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid })
+  });
+  const d = await res.json();
+  if (!d.ok) { showMsg(sid, `Record error: ${d.error}`, '#ef4444'); return; }
+  document.getElementById(`rec-start-${sid}`).style.display = 'none';
+  document.getElementById(`rec-stop-${sid}`).style.display  = '';
+  document.getElementById(`rec-dl-${sid}`).style.display    = 'none';
+  document.getElementById(`rec-status-${sid}`).textContent  = `Saving to: ${d.file}`;
+}
+
+async function stopRecord(sid) {
+  const res = await fetch('/api/stop_record', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid })
+  });
+  const d = await res.json();
+  document.getElementById(`rec-stop-${sid}`).style.display   = 'none';
+  document.getElementById(`rec-start-${sid}`).style.display  = '';
+  document.getElementById(`rec-dl-${sid}`).style.display     = '';
+  document.getElementById(`rec-apply-${sid}`).style.display  = '';
+  document.getElementById(`rec-count-${sid}`).textContent    = '';
+  document.getElementById(`rec-status-${sid}`).textContent   =
+    d.ok ? `Saved ${d.samples} samples → ${d.file}` : `Error: ${d.error}`;
+}
+
+function downloadRecord(sid) {
+  window.location.href = `/api/download_record/${sid}`;
+}
+
+function showManualLimits(sid) {
+  const el = document.getElementById(`manual-limits-${sid}`);
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+async function setLimitsDirect(sid, minVal, maxVal, wrap) {
+  const res = await fetch('/api/set_limits_direct', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid, min: minVal, max: maxVal, wrap })
+  });
+  const d = await res.json();
+  if (!d.ok) { showMsg(sid, 'Failed to apply limits', '#ef4444'); return; }
+  const wrapCb = document.getElementById(`wrap-${sid}`);
+  if (wrapCb) wrapCb.checked = d.wrap;
+  showMsg(sid, `Limits applied — min=${d.min}, max=${d.max}, ${d.degrees}°${d.wrap ? ', wraps ✓' : ''}`, '#4ade80');
+  document.getElementById(`rec-status-${sid}`).textContent =
+    `min=${d.min}  max=${d.max}  travel=${d.degrees}°${d.wrap ? '  wraps ✓' : ''}`;
+}
+
+async function applyManual(sid) {
+  const minVal = parseInt(document.getElementById(`man-min-${sid}`).value);
+  const maxVal = parseInt(document.getElementById(`man-max-${sid}`).value);
+  const wrap   = document.getElementById(`man-wrap-${sid}`).checked;
+  if (isNaN(minVal) || isNaN(maxVal)) { showMsg(sid, 'Enter both min and max', '#ef4444'); return; }
+  await setLimitsDirect(sid, minVal, maxVal, wrap);
+  document.getElementById(`manual-limits-${sid}`).style.display = 'none';
+}
+
+async function applyFromCSV(sid) {
+  const file = document.getElementById(`csv-file-${sid}`).files[0];
+  if (!file) return;
+  const text = await file.text();
+  const lines = text.trim().split('\n').slice(1); // skip header
+  const raws  = lines.map(l => parseInt(l.split(',')[1])).filter(v => !isNaN(v));
+  if (raws.length < 2) { showMsg(sid, 'CSV too short', '#ef4444'); return; }
+
+  // Detect wrap: large jump between consecutive values
+  const wraps = raws.some((v, i) => i > 0 && Math.abs(v - raws[i-1]) > 2048);
+  const minVal = raws[0];
+  const maxVal = raws[raws.length - 1];
+  const travel = wraps
+    ? (sid === 4 ? ((minVal - maxVal + 4096) % 4096) : ((4095 - minVal) + maxVal))
+    : Math.abs(maxVal - minVal);
+  const degrees = (travel * 270 / 4095).toFixed(1);
+
+  document.getElementById(`rec-status-${sid}`).textContent =
+    `CSV: min=${minVal}, max=${maxVal}, ${wraps?'wraps ✓':'no wrap'}, ${degrees}°`;
+  await setLimitsDirect(sid, minVal, maxVal, wraps);
+
+  // Reset file input so same file can be re-loaded
+  document.getElementById(`csv-file-${sid}`).value = '';
+}
+
+async function applyRecording(sid) {
+  const res = await fetch('/api/apply_recording', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid })
+  });
+  const d = await res.json();
+  if (!d.ok) { showMsg(sid, `Apply failed: ${d.error}`, '#ef4444'); return; }
+
+  // Auto-check the wrap toggle if the range wraps
+  const wrapCb = document.getElementById(`wrap-${sid}`);
+  if (wrapCb) wrapCb.checked = d.wraps;
+
+  document.getElementById(`rec-status-${sid}`).textContent =
+    `Applied: min=${d.min}, max=${d.max}, ${d.wraps ? 'wraps ✓' : 'no wrap'}, travel=${d.degrees}°`;
+  showMsg(sid, `Limits applied — ${d.degrees}° travel (${d.samples} samples)`, '#4ade80');
+}
+
 async function setZero(sid) {
   const res = await fetch('/api/set_zero', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -667,6 +1046,25 @@ async function setZero(sid) {
   const d = await res.json();
   if (d.ok) { localPos[sid] = 0; showMsg(sid, `Zero set (raw=${d.offset_raw})`); }
   else       showMsg(sid, `Failed: ${d.error}`, '#ef4444');
+}
+
+async function defineMiddle(sid) {
+  const res = await fetch('/api/define_middle', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid })
+  });
+  const d = await res.json();
+  if (d.ok) {
+    localPos[sid] = 0;
+    document.getElementById(`lim-min-${sid}`).textContent = 'not set';
+    document.getElementById(`lim-max-${sid}`).textContent = 'not set';
+    document.getElementById(`lim-min-box-${sid}`).className = 'limit-box';
+    document.getElementById(`lim-max-box-${sid}`).className = 'limit-box';
+    document.getElementById(`lim-bar-${sid}`).style.cssText = '';
+    showMsg(sid, `Middle defined${d.raw != null ? ` (raw=${d.raw})` : ''}; redefine limits now`, '#6ee7b7');
+  } else {
+    showMsg(sid, `Failed: ${d.error || 'Define middle failed'}`, '#ef4444');
+  }
 }
 
 async function clearLimits(sid) {
@@ -687,6 +1085,7 @@ async function poll() {
 
     SERVO_IDS.forEach(sid => {
       const s    = data[sid];
+      lastStatus[sid] = s;
       const card = document.getElementById(`card-${sid}`);
       const dot  = document.getElementById(`dot-${sid}`);
 
@@ -712,6 +1111,7 @@ async function poll() {
 
       // Position display (always)
       const cal = s.pos ?? 0;
+      const angleDeg = typeof s.angle_deg === 'number' ? s.angle_deg : null;
       localPos[sid] = cal;
       document.getElementById(`pos-${sid}`).textContent = cal;
       document.getElementById(`sub-${sid}`).textContent =
@@ -719,9 +1119,10 @@ async function poll() {
 
       // Motor mode live position chips
       if (isMotor) {
-        document.getElementById(`mpos-${sid}`).textContent = s.raw ?? '—';
-        document.getElementById(`mdeg-${sid}`).textContent =
-          s.raw != null ? (s.raw / MAX_POS * 270).toFixed(1) + '°' : '—';
+        const mpos = document.getElementById(`mpos-${sid}`);
+        const mdeg = document.getElementById(`mdeg-${sid}`);
+        if (mpos) mpos.textContent = s.raw ?? '—';
+        if (mdeg) mdeg.textContent = angleDeg !== null ? angleDeg.toFixed(1) + '°' : '—';
       }
 
       // Bar always uses raw (0-4095 physical)
@@ -738,6 +1139,10 @@ async function poll() {
       document.getElementById(`rng-${sid}`).textContent =
         span !== null ? `${span} (${(span / MAX_POS * 270).toFixed(1)}°)` : '—';
 
+      // Sync wrap checkbox from backend
+      const wrapCb = document.getElementById(`wrap-${sid}`);
+      if (wrapCb) wrapCb.checked = false;
+
       // Joint limit bar
       updateLimitBar(sid, s.raw ?? 0, s.sw_min ?? null, s.sw_max ?? null);
 
@@ -746,6 +1151,17 @@ async function poll() {
       document.getElementById(`temp-${sid}`).textContent = s.temp   ?? '—';
       document.getElementById(`mov-${sid}`).textContent  = s.moving ? 'Yes' : 'No';
     });
+    // Recording status
+    try {
+      const rres  = await fetch('/api/record_status');
+      const rdata = await rres.json();
+      SERVO_IDS.forEach(sid => {
+        const r = rdata[sid];
+        if (r && r.active) {
+          document.getElementById(`rec-count-${sid}`).textContent = `● ${r.count} samples`;
+        }
+      });
+    } catch(_) {}
   } catch(e) { console.warn('Poll error', e); }
   setTimeout(poll, 200);
 }

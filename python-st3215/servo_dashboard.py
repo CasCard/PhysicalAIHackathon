@@ -5,10 +5,14 @@ Usage: python3 servo_dashboard.py
 Then open http://localhost:5000 in your browser
 """
 
+import csv
+import os
 import sys
 import time
 import threading
-from flask import Flask, jsonify, request, render_template
+from datetime import datetime
+from typing import Any, Dict, List
+from flask import Flask, jsonify, request, render_template, send_file
 
 sys.path.insert(0, '.')
 from st3215.port_handler import PortHandler
@@ -18,6 +22,16 @@ import st3215.values as V
 DEVICE    = '/dev/ttyACM0'
 BAUD      = 1_000_000
 KNOWN_IDS = list(range(1, 7))  # IDs 1-6
+RAW_MAX   = 4095
+RAW_MOD   = RAW_MAX + 1
+
+DEFAULT_LIMITS = {
+    1: {'min': 2782, 'max': 4095},
+    2: {'min': 0, 'max': 3582},
+    3: {'min': 1, 'max': 1706},
+    4: {'min': 1, 'max': 2041},
+    5: {'min': 2042, 'max': 4095},
+}
 
 app = Flask(__name__)
 
@@ -51,12 +65,40 @@ class Bus:
 # ── Servo state ──────────────────────────────────────────────────────────────
 servo_state: dict = {}
 sw_offset:   dict = {}  # {sid: raw_position_at_zero}
-sw_min:      dict = {}  # {sid: raw min limit}
-sw_max:      dict = {}  # {sid: raw max limit}
+sw_min:      Dict[int, int] = {}  # {sid: raw min limit}
+sw_max:      Dict[int, int] = {}  # {sid: raw max limit}
+sw_wrap:     Dict[int, bool] = {}  # {sid: True if range crosses 0/4095}
+
+# ── Recording state ───────────────────────────────────────────────────────────
+recordings: Dict[int, Dict[str, Any]] = {}  # {sid: {active, writer, fh, path, count, last_raw}}
+
+
+for _sid, _limits in DEFAULT_LIMITS.items():
+    sw_min[_sid] = _limits['min']
+    sw_max[_sid] = _limits['max']
+    sw_offset[_sid] = _limits['min']
+    sw_wrap[_sid] = False
+
+
+def travel_limit(sid: int) -> int | None:
+    lo = sw_min.get(sid)
+    hi = sw_max.get(sid)
+    if lo is None or hi is None:
+        return None
+    return abs(hi - lo)
 
 
 def calibrated(sid: int, raw: int) -> int:
     return raw - sw_offset.get(sid, 0)
+
+
+def calibrated_to_raw(sid: int, cal_pos: int) -> int:
+    lo = sw_min.get(sid)
+    hi = sw_max.get(sid)
+    raw_pos = cal_pos + sw_offset.get(sid, 0)
+    if lo is None or hi is None:
+        return raw_pos
+    return max(lo, min(hi, raw_pos))
 
 
 def update_state(sid: int, raw: int, volt, temp, moving: bool, mode: int) -> None:
@@ -84,6 +126,20 @@ def poll_loop(bus: Bus) -> None:
                 mode = bus.r1(sid, V.STS_MODE)
                 if raw is not None:
                     update_state(sid, raw, volt, temp, bool(mov), mode or 0)
+                    # Write to CSV if recording and value changed
+                    rec = recordings.get(sid)
+                    if rec and rec['active'] and raw != rec.get('last_raw'):
+                        rec['last_raw'] = raw
+                        rec['count']   += 1
+                        now = datetime.now()
+                        ms  = now.microsecond // 1000
+                        ts  = f"{now.strftime('%H:%M:%S')}.{ms:03d}"
+                        rec['writer'].writerow([
+                            ts,
+                            raw,
+                            round(raw / RAW_MAX * 270, 2),
+                            calibrated(sid, raw),
+                        ])
                 else:
                     servo_state.setdefault(sid, {})['online'] = False
         time.sleep(0.2)
@@ -111,8 +167,11 @@ def api_status():
             'temp':      s.get('temp'),
             'moving':    s.get('moving', False),
             'mode':      s.get('mode', 0),
-            'sw_min':    sw_min.get(sid),       # None = no limit set
+            'sw_min':    sw_min.get(sid),
             'sw_max':    sw_max.get(sid),
+            'sw_wrap':   False,
+            'travel':    travel_limit(sid),
+            'angle_deg': round((s.get('raw') or 0) / RAW_MAX * 270, 2) if s.get('raw') is not None else None,
         }
     return jsonify(result)
 
@@ -123,8 +182,7 @@ def api_move():
     sid     = int(data['id'])
     cal_pos = int(data['pos'])
     speed   = int(data.get('speed', 500))
-    raw_pos = cal_pos + sw_offset.get(sid, 0)
-    raw_pos = max(sw_min.get(sid, 0), min(sw_max.get(sid, 4095), raw_pos))
+    raw_pos = calibrated_to_raw(sid, cal_pos)
 
     with _bus.lock:
         _bus.write(sid, V.STS_GOAL_POSITION_L, [
@@ -182,6 +240,123 @@ def api_set_mode():
     return jsonify({'ok': True, 'mode': mode})
 
 
+@app.route('/api/start_record', methods=['POST'])
+def api_start_record():
+    sid = int((request.json or {})['id'])
+    if recordings.get(sid, {}).get('active'):
+        return jsonify({'ok': False, 'error': 'Already recording'})
+
+    os.makedirs('recordings', exist_ok=True)
+    fname = f"recordings/servo_{sid}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    fh    = open(fname, 'w', newline='')
+    writer = csv.writer(fh)
+    writer.writerow(['time', 'raw', 'degrees', 'calibrated'])
+    recordings[sid] = {
+        'active':   True,
+        'writer':   writer,
+        'fh':       fh,
+        'path':     fname,
+        'count':    0,
+        'last_raw': -1,
+    }
+    return jsonify({'ok': True, 'file': fname})
+
+
+@app.route('/api/stop_record', methods=['POST'])
+def api_stop_record():
+    sid = int((request.json or {})['id'])
+    if sid not in recordings or not recordings[sid]['active']:
+        return jsonify({'ok': False, 'error': 'Not recording'})
+
+    recordings[sid]['active'] = False
+    recordings[sid]['fh'].flush()
+    recordings[sid]['fh'].close()
+    return jsonify({'ok': True, 'file': recordings[sid]['path'], 'samples': recordings[sid]['count']})
+
+
+@app.route('/api/record_status')
+def api_record_status():
+    result = {}
+    for sid in KNOWN_IDS:
+        rec = recordings.get(sid)
+        result[str(sid)] = {
+            'active':  rec['active'] if rec else False,
+            'count':   rec['count']  if rec else 0,
+            'file':    rec['path']   if rec else None,
+        }
+    return jsonify(result)
+
+
+@app.route('/api/download_record/<int:sid>')
+def api_download_record(sid: int):
+    rec = recordings.get(sid)
+    if not rec or not os.path.exists(rec['path']):
+        return jsonify({'error': 'No recording found'}), 404
+    return send_file(rec['path'], as_attachment=True,
+                     download_name=os.path.basename(rec['path']))
+
+
+@app.route('/api/apply_recording', methods=['POST'])
+def api_apply_recording():
+    """Analyse the last recording CSV for a servo and auto-set min/max/wrap limits."""
+    sid = int((request.json or {})['id'])
+    rec = recordings.get(sid)
+    if not rec or not os.path.exists(rec['path']):
+        return jsonify({'ok': False, 'error': 'No recording found for this servo'}), 404
+
+    raws: List[int] = []
+    with open(rec['path'], newline='') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            raws.append(int(row['raw']))
+
+    if len(raws) < 2:
+        return jsonify({'ok': False, 'error': 'Recording too short'}), 400
+
+    # Detect wrap: a large jump between consecutive values (> 2048) signals 0/4095 crossing
+    wraps = any(abs(raws[i] - raws[i-1]) > 2048 for i in range(1, len(raws)))
+
+    if wraps:
+        # Min = first value (where recording started = physical min end-stop)
+        # Max = last stable value (where recording ended = physical max end-stop)
+        detected_min = raws[0]
+        detected_max = raws[-1]
+    else:
+        detected_min = min(raws)
+        detected_max = max(raws)
+
+    sw_min[sid]  = detected_min
+    sw_max[sid]  = detected_max
+    sw_wrap[sid] = False
+
+    travel = abs(detected_max - detected_min)
+    degrees = int(travel * 2700 / RAW_MAX) / 10.0
+
+    return jsonify({
+        'ok':      True,
+        'min':     detected_min,
+        'max':     detected_max,
+        'wraps':   wraps,
+        'travel':  travel,
+        'degrees': degrees,
+        'samples': len(raws),
+    })
+
+
+@app.route('/api/set_limits_direct', methods=['POST'])
+def api_set_limits_direct():
+    """Directly set min/max/wrap for a servo from known values (e.g. from a CSV analysis)."""
+    data = request.json or {}
+    sid  = int(data['id'])
+    sw_min[sid]  = int(data['min'])
+    sw_max[sid]  = int(data['max'])
+    sw_wrap[sid] = False
+    travel = abs(sw_max[sid] - sw_min[sid])
+    degrees = int(travel * 2700 / RAW_MAX) / 10.0
+    return jsonify({'ok': True, 'min': sw_min[sid], 'max': sw_max[sid],
+                    'wrap': sw_wrap[sid], 'travel': travel, 'degrees': degrees})
+
+
 @app.route('/api/set_joint_limit', methods=['POST'])
 def api_set_joint_limit():
     """Save current raw position as the min or max software limit for a servo."""
@@ -225,6 +400,42 @@ def api_set_zero():
         servo_state[sid]['max_seen'] = 0
 
     return jsonify({'ok': True, 'offset_raw': raw})
+
+
+@app.route('/api/define_middle', methods=['POST'])
+def api_define_middle():
+    """Use Feetech's define-middle action, then clear dashboard-side offsets/limits."""
+    sid = int((request.json or {})['id'])
+
+    with _bus.lock:
+        _bus.write(sid, V.STS_TORQUE_ENABLE, [0])
+        time.sleep(0.05)
+        _bus.write(sid, V.STS_TORQUE_ENABLE, [128])
+        time.sleep(0.3)
+        _bus.write(sid, V.STS_LOCK, [0])
+        time.sleep(0.05)
+        _bus.write(sid, V.STS_MODE, [0])
+        time.sleep(0.05)
+        _bus.write(sid, V.STS_GOAL_SPEED_L, [0, 0])
+        time.sleep(0.05)
+        _bus.write(sid, V.STS_TORQUE_ENABLE, [1])
+        time.sleep(0.05)
+        _bus.write(sid, V.STS_LOCK, [1])
+        time.sleep(0.1)
+        raw = _bus.r2(sid, V.STS_PRESENT_POSITION_L)
+
+    sw_offset.pop(sid, None)
+    sw_min.pop(sid, None)
+    sw_max.pop(sid, None)
+    sw_wrap[sid] = False
+
+    if raw is not None:
+        update_state(sid, raw, servo_state.get(sid, {}).get('volt', 0), servo_state.get(sid, {}).get('temp'), False, 0)
+        if sid in servo_state:
+            servo_state[sid]['min_seen'] = 0
+            servo_state[sid]['max_seen'] = 0
+
+    return jsonify({'ok': True, 'raw': raw, 'message': 'Middle defined; software limits cleared'})
 
 
 @app.route('/api/torque', methods=['POST'])
