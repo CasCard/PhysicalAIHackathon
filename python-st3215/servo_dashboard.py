@@ -51,6 +51,8 @@ class Bus:
 # ── Servo state ──────────────────────────────────────────────────────────────
 servo_state: dict = {}
 sw_offset:   dict = {}  # {sid: raw_position_at_zero}
+sw_min:      dict = {}  # {sid: raw min limit}
+sw_max:      dict = {}  # {sid: raw max limit}
 
 
 def calibrated(sid: int, raw: int) -> int:
@@ -99,16 +101,18 @@ def api_status():
     for sid in KNOWN_IDS:
         s = servo_state.get(sid, {})
         result[str(sid)] = {
-            'online':   s.get('online', False),
-            'pos':      s.get('pos'),
-            'raw':      s.get('raw'),
-            'offset':   sw_offset.get(sid, 0),
-            'min_seen': s.get('min_seen'),
-            'max_seen': s.get('max_seen'),
-            'volt':     s.get('volt'),
-            'temp':     s.get('temp'),
-            'moving':   s.get('moving', False),
-            'mode':     s.get('mode', 0),
+            'online':    s.get('online', False),
+            'pos':       s.get('pos'),
+            'raw':       s.get('raw'),
+            'offset':    sw_offset.get(sid, 0),
+            'min_seen':  s.get('min_seen'),
+            'max_seen':  s.get('max_seen'),
+            'volt':      s.get('volt'),
+            'temp':      s.get('temp'),
+            'moving':    s.get('moving', False),
+            'mode':      s.get('mode', 0),
+            'sw_min':    sw_min.get(sid),       # None = no limit set
+            'sw_max':    sw_max.get(sid),
         }
     return jsonify(result)
 
@@ -119,7 +123,8 @@ def api_move():
     sid     = int(data['id'])
     cal_pos = int(data['pos'])
     speed   = int(data.get('speed', 500))
-    raw_pos = max(0, min(4095, cal_pos + sw_offset.get(sid, 0)))
+    raw_pos = cal_pos + sw_offset.get(sid, 0)
+    raw_pos = max(sw_min.get(sid, 0), min(sw_max.get(sid, 4095), raw_pos))
 
     with _bus.lock:
         _bus.write(sid, V.STS_GOAL_POSITION_L, [
@@ -175,6 +180,35 @@ def api_set_mode():
         servo_state[sid]['max_seen'] = cal
 
     return jsonify({'ok': True, 'mode': mode})
+
+
+@app.route('/api/set_joint_limit', methods=['POST'])
+def api_set_joint_limit():
+    """Save current raw position as the min or max software limit for a servo."""
+    data  = request.json or {}
+    sid   = int(data['id'])
+    which = data['which']   # 'min' or 'max'
+    raw   = servo_state.get(sid, {}).get('raw')
+    if raw is None:
+        return jsonify({'ok': False, 'error': 'No position data'}), 500
+
+    if which == 'min':
+        sw_min[sid] = raw
+    else:
+        sw_max[sid] = raw
+
+    return jsonify({'ok': True, 'which': which, 'raw': raw})
+
+
+@app.route('/api/clear_joint_limit', methods=['POST'])
+def api_clear_joint_limit():
+    """Remove the software min/max limit for a servo."""
+    data  = request.json or {}
+    sid   = int(data['id'])
+    which = data.get('which', 'both')
+    if which in ('min', 'both'):  sw_min.pop(sid, None)
+    if which in ('max', 'both'):  sw_max.pop(sid, None)
+    return jsonify({'ok': True})
 
 
 @app.route('/api/set_zero', methods=['POST'])

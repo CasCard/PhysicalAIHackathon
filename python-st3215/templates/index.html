@@ -144,6 +144,19 @@
     padding: 6px; border-radius: 8px; background: #0f1117;
     margin-bottom: 8px; letter-spacing: 1px;
   }
+  .motor-pos-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .motor-pos-chip {
+    flex: 1; background: #0f1117; border-radius: 8px;
+    padding: 6px 10px; text-align: center;
+    border: 1px solid #2d3548;
+  }
+  .motor-pos-val { display: block; font-size: 1.1rem; font-weight: 700; color: #c084fc; }
+  .motor-pos-lbl { display: block; font-size: 0.62rem; color: #64748b; margin-top: 2px; }
+
+  /* Wrap toggle */
+  .wrap-toggle { display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 0.68rem; color: #64748b; }
+  .wrap-toggle input { accent-color: #f97316; cursor: pointer; }
+  .wrap-toggle:hover span { color: #f97316; }
 
   /* Telemetry chips */
   .telem { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -198,6 +211,53 @@
   .global-bar .speed-val { font-size: 0.9rem; font-weight: 700; color: #a78bfa; width: 60px; text-align: right; }
 
   hr.divider { border: none; border-top: 1px solid #2d3548; margin: 12px 0; }
+
+  /* Joint limits */
+  .limit-header {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 0.75rem; font-weight: 700; color: #94a3b8;
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px;
+  }
+  .btn-clear-limits {
+    background: none; border: 1px solid #334155; border-radius: 6px;
+    color: #64748b; font-size: 0.7rem; padding: 2px 8px; cursor: pointer;
+  }
+  .btn-clear-limits:hover { color: #ef4444; border-color: #ef4444; }
+
+  .limit-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+  }
+  .limit-box {
+    flex: 0 0 70px; background: #0f1117; border-radius: 8px;
+    padding: 6px 8px; text-align: center;
+    border: 2px solid #1e2330; transition: border-color 0.2s;
+  }
+  .limit-box.set-min { border-color: #fb923c; }
+  .limit-box.set-max { border-color: #4ade80; }
+  .limit-val { font-size: 0.85rem; font-weight: 700; color: #e2e8f0; }
+  .limit-lbl { font-size: 0.6rem; color: #64748b; margin-top: 2px; }
+
+  .limit-btns { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+  .btn-setmin { background: #3d1f00; color: #fb923c; }
+  .btn-setmin:hover { background: #ea580c; color: #fff; }
+  .btn-setmax { background: #052e16; color: #4ade80; }
+  .btn-setmax:hover { background: #16a34a; color: #fff; }
+
+  /* Limit range bar */
+  .limit-bar-wrap {
+    position: relative; height: 8px; background: #0f1117;
+    border-radius: 4px; margin-bottom: 4px;
+  }
+  .limit-bar-full   { position: absolute; inset: 0; background: #1e293b; border-radius: 4px; }
+  .limit-bar-active {
+    position: absolute; height: 100%; background: #16a34a44;
+    border-radius: 4px; transition: left 0.2s, width 0.2s;
+  }
+  .limit-bar-pos {
+    position: absolute; top: -3px; width: 6px; height: 14px;
+    background: #7dd3fc; border-radius: 3px;
+    transform: translateX(-50%); transition: left 0.15s;
+  }
 </style>
 </head>
 <body>
@@ -289,6 +349,16 @@ SERVO_IDS.forEach(sid => {
 
     <!-- Motor wheel controls -->
     <div class="motor-controls" id="motor-ctrl-${sid}">
+      <div class="motor-pos-row">
+        <div class="motor-pos-chip">
+          <span class="motor-pos-val" id="mpos-${sid}">—</span>
+          <span class="motor-pos-lbl">Position (raw)</span>
+        </div>
+        <div class="motor-pos-chip">
+          <span class="motor-pos-val" id="mdeg-${sid}">—</span>
+          <span class="motor-pos-lbl">Degrees</span>
+        </div>
+      </div>
       <div class="mspeed-display" id="mspeed-display-${sid}">Speed: 0</div>
       <div class="motor-btns">
         <button class="motor-btn-dir btn-ccw"  onclick="motorStep(${sid}, -1)">− CCW</button>
@@ -313,10 +383,43 @@ SERVO_IDS.forEach(sid => {
       <div class="telem-chip"><div class="val" id="mov-${sid}">—</div><div class="lbl">Moving</div></div>
     </div>
 
+    <!-- Joint travel limits -->
+    <hr class="divider">
+    <div class="limit-header">
+      <span>Joint Travel Limits</span>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <label class="wrap-toggle" title="Enable if your range crosses the 0/4095 boundary">
+          <input type="checkbox" id="wrap-${sid}" onchange="updateLimitBar(${sid},null,null,null)">
+          <span>Wraps 0/4095</span>
+        </label>
+        <button class="btn-clear-limits" onclick="clearJointLimits(${sid})">✕ Clear All</button>
+      </div>
+    </div>
+    <div class="limit-row">
+      <div class="limit-box" id="lim-min-box-${sid}">
+        <div class="limit-val" id="lim-min-${sid}">not set</div>
+        <div class="limit-lbl">MIN</div>
+      </div>
+      <div class="limit-btns">
+        <button class="btn-action btn-setmin" onclick="setJointLimit(${sid},'min')">&#9660; Set Min</button>
+        <button class="btn-action btn-setmax" onclick="setJointLimit(${sid},'max')">&#9650; Set Max</button>
+      </div>
+      <div class="limit-box" id="lim-max-box-${sid}">
+        <div class="limit-val" id="lim-max-${sid}">not set</div>
+        <div class="limit-lbl">MAX</div>
+      </div>
+    </div>
+    <div class="limit-bar-wrap">
+      <div class="limit-bar-full"></div>
+      <div class="limit-bar-active" id="lim-bar-${sid}"></div>
+      <div class="limit-bar-pos"    id="lim-pos-${sid}"></div>
+    </div>
+
     <!-- Action buttons -->
+    <hr class="divider">
     <div class="action-row">
       <button class="btn-action btn-zero"   onclick="setZero(${sid})">Set as Zero</button>
-      <button class="btn-action btn-limits" onclick="clearLimits(${sid})">Clear Limits</button>
+      <button class="btn-action btn-limits" onclick="clearLimits(${sid})">Clear HW Limits</button>
     </div>
     <div class="action-row">
       <button class="btn-action btn-release" id="release-${sid}" onclick="releaseTorque(${sid})">&#128275; Release Motor</button>
@@ -483,6 +586,79 @@ async function engageTorque(sid) {
 }
 
 // ── Set zero / clear limits ───────────────────────────────────────────────────
+async function setJointLimit(sid, which) {
+  const res = await fetch('/api/set_joint_limit', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid, which })
+  });
+  const d = await res.json();
+  if (d.ok) showMsg(sid, `${which.toUpperCase()} limit set at raw=${d.raw}`, which === 'min' ? '#fb923c' : '#4ade80');
+  else      showMsg(sid, `Failed: ${d.error}`, '#ef4444');
+}
+
+async function clearJointLimits(sid) {
+  await fetch('/api/clear_joint_limit', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ id: sid, which: 'both' })
+  });
+  document.getElementById(`lim-min-${sid}`).textContent = 'not set';
+  document.getElementById(`lim-max-${sid}`).textContent = 'not set';
+  document.getElementById(`lim-min-box-${sid}`).className = 'limit-box';
+  document.getElementById(`lim-max-box-${sid}`).className = 'limit-box';
+  document.getElementById(`lim-bar-${sid}`).style.cssText = '';
+  showMsg(sid, 'Joint limits cleared', '#64748b');
+}
+
+// Cache last known limit values so wrap-toggle can redraw without new poll data
+const limitCache = {};  // {sid: {raw, swMin, swMax}}
+
+function updateLimitBar(sid, raw, swMin, swMax) {
+  // Use cached values if called from checkbox change (nulls passed)
+  const cache = limitCache[sid] || {};
+  if (raw   === null) raw   = cache.raw   ?? 0;
+  if (swMin === null) swMin = cache.swMin ?? null;
+  if (swMax === null) swMax = cache.swMax ?? null;
+  limitCache[sid] = { raw, swMin, swMax };
+
+  const posEl  = document.getElementById(`lim-pos-${sid}`);
+  const barEl  = document.getElementById(`lim-bar-${sid}`);
+  const minEl  = document.getElementById(`lim-min-${sid}`);
+  const maxEl  = document.getElementById(`lim-max-${sid}`);
+  const minBox = document.getElementById(`lim-min-box-${sid}`);
+  const maxBox = document.getElementById(`lim-max-box-${sid}`);
+  const wrap   = document.getElementById(`wrap-${sid}`)?.checked ?? false;
+
+  posEl.style.left = (raw / 4095 * 100) + '%';
+
+  if (swMin !== null && swMax !== null) {
+    minEl.textContent = swMin; minBox.className = 'limit-box set-min';
+    maxEl.textContent = swMax; maxBox.className = 'limit-box set-max';
+
+    if (wrap) {
+      // Range crosses 0/4095: two green zones — 0→swMin and swMax→4095
+      // Use a CSS gradient on barEl to show both zones
+      const minPct = swMin / 4095 * 100;
+      const maxPct = swMax / 4095 * 100;
+      barEl.style.left       = '0%';
+      barEl.style.width      = '100%';
+      barEl.style.background =
+        `linear-gradient(to right,
+          #16a34a66 0%, #16a34a66 ${minPct}%,
+          #0f111700 ${minPct}%, #0f111700 ${maxPct}%,
+          #16a34a66 ${maxPct}%, #16a34a66 100%)`;
+    } else {
+      // Normal range: single green zone swMin→swMax
+      barEl.style.left       = (swMin / 4095 * 100) + '%';
+      barEl.style.width      = ((swMax - swMin) / 4095 * 100) + '%';
+      barEl.style.background = '#16a34a44';
+    }
+  } else if (swMin !== null) {
+    minEl.textContent = swMin; minBox.className = 'limit-box set-min';
+  } else if (swMax !== null) {
+    maxEl.textContent = swMax; maxBox.className = 'limit-box set-max';
+  }
+}
+
 async function setZero(sid) {
   const res = await fetch('/api/set_zero', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -534,12 +710,19 @@ async function poll() {
         document.getElementById(`plus-${sid}`).disabled  = false;
       }
 
-      // Position display
+      // Position display (always)
       const cal = s.pos ?? 0;
       localPos[sid] = cal;
       document.getElementById(`pos-${sid}`).textContent = cal;
       document.getElementById(`sub-${sid}`).textContent =
         `raw: ${s.raw ?? '—'}  |  ${(s.raw / MAX_POS * 270).toFixed(1)}°`;
+
+      // Motor mode live position chips
+      if (isMotor) {
+        document.getElementById(`mpos-${sid}`).textContent = s.raw ?? '—';
+        document.getElementById(`mdeg-${sid}`).textContent =
+          s.raw != null ? (s.raw / MAX_POS * 270).toFixed(1) + '°' : '—';
+      }
 
       // Bar always uses raw (0-4095 physical)
       const minRaw = (s.min_seen ?? 0) + (s.offset ?? 0);
@@ -554,6 +737,9 @@ async function poll() {
       const span = (s.min_seen !== null && s.max_seen !== null) ? s.max_seen - s.min_seen : null;
       document.getElementById(`rng-${sid}`).textContent =
         span !== null ? `${span} (${(span / MAX_POS * 270).toFixed(1)}°)` : '—';
+
+      // Joint limit bar
+      updateLimitBar(sid, s.raw ?? 0, s.sw_min ?? null, s.sw_max ?? null);
 
       // Telemetry
       document.getElementById(`volt-${sid}`).textContent = s.volt   ?? '—';
