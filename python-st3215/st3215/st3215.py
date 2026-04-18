@@ -243,7 +243,6 @@ class ST3215(protocol_packet_handler):
         return self.writeTxRx(sts_id, STS_TORQUE_ENABLE, len(txpacket), txpacket)
 
 
-
     def SetMode(self, sts_id, mode):
         """
         Configure the operational mode for the servo (Position, rotating, PWM, step)
@@ -253,9 +252,51 @@ class ST3215(protocol_packet_handler):
 
         :return: True if the configuration a been succesfully set. None in case of error.
         """
+        # STS_MODE is register 33 (EEPROM). We must unlock it to write.
+        if self.UnLockEprom(sts_id) != 0:
+            return None
+        time.sleep(0.01) # Hardware delay for EEPROM readiness
+        
         txpacket = [mode]
-        return self.writeTxRx(sts_id, STS_MODE, len(txpacket), txpacket)
+        comm, error = self.writeTxRx(sts_id, STS_MODE, len(txpacket), txpacket)
+        
+        time.sleep(0.01)
+        self.LockEprom(sts_id)
+        
+        if comm == 0 and error == 0:
+            return True
+        else:
+            return None
 
+
+    def SetAngleLimits(self, sts_id, min_angle, max_angle):
+        """
+        Configure the physical rotation limits. 
+        Set both to 0 to remove limits for continuous 360 rotation.
+        
+        :param sts_id: Servo ID
+        :param min_angle: 0-4095
+        :param max_angle: 0-4095
+        """
+        if self.UnLockEprom(sts_id) != 0:
+            return None
+        time.sleep(0.01)
+        
+        # Write 4 bytes: Min_L, Min_H, Max_L, Max_H
+        txpacket = [
+            self.sts_lobyte(min_angle), self.sts_hibyte(min_angle),
+            self.sts_lobyte(max_angle), self.sts_hibyte(max_angle)
+        ]
+        
+        comm, error = self.writeTxRx(sts_id, STS_MIN_ANGLE_LIMIT_L, len(txpacket), txpacket)
+        
+        time.sleep(0.01)
+        self.LockEprom(sts_id)
+        
+        if comm == 0 and error == 0:
+            return True
+        else:
+            return None
 
 
     def CorrectPosition(self, sts_id, correction):
@@ -276,7 +317,20 @@ class ST3215(protocol_packet_handler):
         if correction < 0:
             txpacket[1] |= (1 << 3)
 
-        return self.writeTxRx(sts_id, STS_OFS_L, len(txpacket), txpacket)
+        # STS_OFS_L is register 31 (EEPROM). Must unlock.
+        if self.UnLockEprom(sts_id) != 0:
+            return None
+        time.sleep(0.01)
+
+        comm, error = self.writeTxRx(sts_id, STS_OFS_L, len(txpacket), txpacket)
+        
+        time.sleep(0.01)
+        self.LockEprom(sts_id)
+        
+        if comm == 0 and error == 0:
+            return True
+        else:
+            return None
 
 
     def Rotate(self, sts_id, speed):
@@ -301,7 +355,6 @@ class ST3215(protocol_packet_handler):
             txpacket[1] |= (1 << 7)
 
         return self.writeTxRx(sts_id, STS_GOAL_SPEED_L, len(txpacket), txpacket)
-
 
 
     def getBlockPosition(self, sts_id):
@@ -338,7 +391,6 @@ class ST3215(protocol_packet_handler):
             time.sleep(0.02)
 
 
-
     def DefineMiddle(self, sts_id):
         """
         Define the 2048 position (Set torque to 128)
@@ -353,7 +405,6 @@ class ST3215(protocol_packet_handler):
             return True
         else:
             return None
-
 
 
     def TareServo(self, sts_id):
@@ -409,7 +460,6 @@ class ST3215(protocol_packet_handler):
         return min_position, max_position
 
 
-
     def MoveTo(self, sts_id, position, speed = 2400, acc = 50, wait = False):
         """
         Move the servo to a pre defined position
@@ -457,8 +507,10 @@ class ST3215(protocol_packet_handler):
         return True
 
 
-
     def WritePosition(self, sts_id, position):
+        # Prevent 12-bit overflow corruption 
+        position = max(0, min(MAX_POSITION, int(position)))
+        
         txpacket = [self.sts_lobyte(position), self.sts_hibyte(position)]
         comm, error = self.writeTxRx(sts_id, STS_GOAL_POSITION_L, len(txpacket), txpacket)
         if comm == 0 and error == 0:
@@ -519,7 +571,6 @@ class ST3215(protocol_packet_handler):
         return self.sts_tohost(sts_present_speed, 15), sts_comm_result, sts_error
 
 
-
     def LockEprom(self, sts_id):
         """
         Lock the servo Eeprom.
@@ -530,6 +581,7 @@ class ST3215(protocol_packet_handler):
         """
         return self.write1ByteTxOnly(sts_id, STS_LOCK, 1)
 
+
     def UnLockEprom(self, sts_id):
         """
         Unlock the servo Eeprom.
@@ -539,6 +591,7 @@ class ST3215(protocol_packet_handler):
         :return: 0 in case of success
         """
         return self.write1ByteTxOnly(sts_id, STS_LOCK, 0)
+
 
     def ChangeId(self, sts_id, new_id):
         """
@@ -562,7 +615,4 @@ class ST3215(protocol_packet_handler):
             self.LockEprom(sts_id)
             return None
         else:
-            return "new_id is not between 0 and 253" 
-
-
-
+            return "new_id is not between 0 and 253"
