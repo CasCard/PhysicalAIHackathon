@@ -3,6 +3,8 @@
 🧠 Project Title
 EcoSort AI Agent Autonomous, Edge-Powered Waste Sorting for Kerala. Mainly 
 
+![img](assets/waste_sort.jpg)
+
 Key Elements In the Project
 
 - SO100 & SO101 Open Souce Leader and Follower Robot Arm (Base on ST)
@@ -10,10 +12,18 @@ Key Elements In the Project
 
 Segmentation Model Training Methodology 
 
+![img](assets/WIN_20260419_11_15_42_Pro.jpg)
+
 1. Dataset was collected according to local setting using the camera
 2. The images are uploaded in the roboflow platform for annoation and training 
 3. The annotation is done based on the number of desire classed for the waste classification that is mainly 4. categories and the part of the robotic arm for better localization in the image frame
 5. Once the image is annotated they can be trained using the Yolo26 segmentation model using pytorch which is a frontier model for object detection and classification as of April 2026 and is suitable to be run in edge hardware
+![img](assets/Roboflow_Training.png)
+
 6. The trained model produces at `best.pt` file which needs to be converted to a compiled format to be run in edge 
 7. This model is then required to be converted to the Hailo executable format .hef which is process of quantization that is done with the help of Hailo Data Flow Compiler and Hailo Runtime 
 8. Once converted this can be deployed locally 
+
+
+
+
