@@ -24,6 +24,8 @@ Segmentation Model Training Methodology
 7. This model is then required to be converted to the Hailo executable format .hef which is process of quantization that is done with the help of Hailo Data Flow Compiler and Hailo Runtime 
 8. Once converted this can be deployed locally 
 
+![img](assets/gemma_inference.png)
+
 
 
 
