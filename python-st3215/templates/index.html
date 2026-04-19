@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ST3215 Servo Dashboard</title>
+<title>EcoSort AI</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -258,6 +258,320 @@
   .play-btn span { display:block; font-size:0.72rem; color:#94a3b8; line-height:1.3; }
   .play-stop { background: linear-gradient(180deg, #351515 0%, #221010 100%); }
   .play-stop:hover { border-color: #f87171; background: linear-gradient(180deg, #451717 0%, #2a1010 100%); }
+  .motion-panel {
+    background: #18202a; border: 1px solid #2d3548; border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 22px;
+  }
+  .motion-head {
+    display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px;
+  }
+  .motion-title {
+    font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; color: #f9a8d4; text-transform: uppercase;
+  }
+  .motion-status {
+    font-size: 0.78rem; color: #94a3b8; min-height: 18px;
+  }
+  .motion-actions {
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px;
+  }
+  .motion-btn {
+    border: 1px solid #334155; border-radius: 10px; padding: 10px 12px;
+    background: linear-gradient(180deg, #162130 0%, #101722 100%);
+    color: #e2e8f0; cursor: pointer; text-align: left;
+    transition: border-color 0.15s, transform 0.1s, background 0.15s;
+  }
+  .motion-btn:hover { border-color: #f472b6; background: linear-gradient(180deg, #2b1730 0%, #181120 100%); }
+  .motion-btn:active { transform: scale(0.98); }
+  .motion-btn strong { display:block; font-size:0.86rem; margin-bottom:4px; }
+  .motion-btn span { display:block; font-size:0.72rem; color:#94a3b8; line-height:1.3; }
+  .motion-meta {
+    display:flex; justify-content:space-between; gap:12px; margin-top:10px; font-size:0.74rem; color:#94a3b8;
+    flex-wrap: wrap;
+  }
+  .teach-panel {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid #2d3548;
+  }
+  .teach-head {
+    display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px;
+  }
+  .teach-title {
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; color: #cbd5e1; text-transform: uppercase;
+  }
+  .teach-status {
+    font-size: 0.74rem; color: #94a3b8; min-height: 18px;
+  }
+  .teach-actions {
+    display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;
+  }
+  .teach-btn {
+    border: 1px solid #334155; border-radius: 9px; padding: 8px 12px;
+    background: #0f172a; color: #e2e8f0; cursor: pointer; font-size: 0.76rem; font-weight: 700;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .teach-btn:hover { border-color: #f472b6; background: #1e1b2e; }
+  .teach-btn.release { color: #fdba74; }
+  .teach-btn.engage { color: #86efac; }
+  .teach-servo-grid {
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:8px;
+  }
+  .teach-servo-btn {
+    border: 1px solid #334155; border-radius: 10px; padding: 8px 10px;
+    background: #0f172a; color: #cbd5e1; cursor: pointer; text-align:left;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .teach-servo-btn:hover { border-color: #60a5fa; background: #162130; }
+  .teach-servo-btn.released { border-color: #ea580c; background: #2c1606; color: #fdba74; }
+  .teach-servo-btn.engaged { border-color: #166534; background: #0d2214; color: #86efac; }
+  .teach-servo-btn strong { display:block; font-size:0.8rem; margin-bottom:4px; }
+  .teach-servo-btn span { display:block; font-size:0.7rem; color: inherit; opacity: 0.9; }
+  .servo-test-panel {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid #2d3548;
+  }
+  .servo-test-head {
+    display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px;
+  }
+  .servo-test-title {
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; color: #cbd5e1; text-transform: uppercase;
+  }
+  .servo-test-status {
+    font-size: 0.74rem; color: #94a3b8; min-height: 18px;
+  }
+  .servo-test-grid {
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:8px;
+  }
+  .servo-test-btn {
+    border: 1px solid #334155; border-radius: 10px; padding: 8px 10px;
+    background: #0f172a; color: #cbd5e1; cursor: pointer; text-align:left;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .servo-test-btn:hover { border-color: #60a5fa; background: #162130; }
+  .servo-test-btn strong { display:block; font-size:0.8rem; margin-bottom:4px; }
+  .servo-test-btn span { display:block; font-size:0.7rem; color: inherit; opacity: 0.9; }
+  .servo-tool-card {
+    border: 1px solid #334155; border-radius: 10px; padding: 8px 10px; background: #0f172a;
+  }
+  .servo-tool-card strong {
+    display:block; font-size:0.8rem; margin-bottom:6px; color:#e2e8f0;
+  }
+  .servo-tool-actions {
+    display:flex; flex-wrap:wrap; gap:6px;
+  }
+  .servo-tool-mini {
+    border: 1px solid #334155; border-radius: 8px; padding: 6px 8px; background: #162130;
+    color: #cbd5e1; cursor: pointer; font-size:0.7rem; font-weight:700;
+  }
+  .servo-tool-mini:hover { border-color: #60a5fa; }
+  .servo-tool-mini.limit { color: #fbbf24; }
+  .auto-limit-status {
+    margin-top: 10px; font-size: 0.74rem; color: #94a3b8;
+  }
+  .servo6-range {
+    margin-top: 10px; font-size: 0.74rem; color: #94a3b8;
+  }
+  .pair-panel {
+    background: #18202a; border: 1px solid #2d3548; border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 22px;
+  }
+  .pair-head {
+    display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px;
+  }
+  .pair-title {
+    font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em; color: #a7f3d0; text-transform: uppercase;
+  }
+  .pair-status {
+    font-size: 0.78rem; color: #94a3b8; min-height: 18px;
+  }
+  .pair-actions {
+    display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;
+  }
+  .pair-btn {
+    border: 1px solid #334155; border-radius: 9px; padding: 8px 12px;
+    background: #0f172a; color: #e2e8f0; cursor: pointer; font-size: 0.76rem; font-weight: 700;
+  }
+  .pair-btn:hover { border-color: #34d399; background: #123127; }
+  .pair-grid {
+    display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:8px;
+  }
+  .pair-card {
+    background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 10px 12px;
+  }
+  .pair-card.good { border-color: #166534; }
+  .pair-card.warn { border-color: #92400e; }
+  .pair-card.bad { border-color: #7f1d1d; }
+  .pair-card strong {
+    display:block; font-size:0.8rem; margin-bottom:6px; color:#e2e8f0;
+  }
+  .pair-line {
+    font-size: 0.72rem; color: #cbd5e1; line-height: 1.45;
+  }
+  .pair-meta {
+    margin-top: 8px; font-size: 0.72rem; color: #94a3b8;
+  }
+
+  .camera-panel {
+    background: #18202a; border: 1px solid #2d3548; border-radius: 12px;
+    padding: 16px 18px; margin-bottom: 22px;
+    width: min(100%, 1320px);
+  }
+  .camera-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-bottom: 10px;
+  }
+  .camera-title {
+    font-size: 0.85rem; font-weight: 800; letter-spacing: 0.08em;
+    color: #93c5fd; text-transform: uppercase;
+  }
+  .camera-status {
+    font-size: 0.78rem; color: #94a3b8; min-height: 18px; text-align: right;
+  }
+  .camera-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+    justify-items: end;
+  }
+  .camera-card {
+    width: 100%; max-width: 640px; margin-left: auto;
+  }
+  .camera-card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin-bottom: 8px;
+  }
+  .camera-label {
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em;
+    color: #cbd5e1; text-transform: uppercase;
+  }
+  .camera-card-status {
+    font-size: 0.74rem; color: #94a3b8; text-align: right;
+  }
+  .camera-shell {
+    position: relative; overflow: hidden; border-radius: 14px;
+    border: 1px solid #334155; background: #020617;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+  }
+  .camera-feed {
+    display: block; width: 100%; height: 100%; object-fit: cover; background: #020617;
+  }
+  .camera-overlay {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    padding: 20px; text-align: center; font-size: 0.9rem; color: #cbd5e1;
+    background: linear-gradient(180deg, rgba(2, 6, 23, 0.2) 0%, rgba(2, 6, 23, 0.75) 100%);
+  }
+  .camera-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; margin-top: 10px; font-size: 0.74rem; color: #94a3b8;
+  }
+  @media (max-width: 760px) {
+    .camera-grid {
+      justify-items: stretch;
+    }
+    .camera-card {
+      margin-left: 0;
+    }
+  }
+  .camera-details {
+    display: flex; flex-wrap: wrap; gap: 10px; color: #94a3b8;
+    justify-content: flex-end;
+  }
+  .camera-badge {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+    border-radius: 999px; background: #0f172a; border: 1px solid #334155;
+    font-weight: 700; color: #cbd5e1;
+  }
+  .camera-badge.ready { color: #4ade80; border-color: #166534; }
+  .camera-badge.error { color: #fca5a5; border-color: #7f1d1d; }
+  .vision-actions {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid #2d3548;
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+  }
+  .vision-controls {
+    display: flex; gap: 8px; align-items: center;
+  }
+  .vision-btn {
+    border: none; border-radius: 10px; padding: 10px 14px; font-size: 0.82rem;
+    font-weight: 700; cursor: pointer; transition: transform 0.1s, background 0.15s;
+  }
+  .vision-btn:active { transform: scale(0.98); }
+  .vision-btn.start { background: #14532d; color: #bbf7d0; }
+  .vision-btn.start:hover { background: #16a34a; color: #fff; }
+  .vision-btn.stop { background: #450a0a; color: #fca5a5; }
+  .vision-btn.stop:hover { background: #dc2626; color: #fff; }
+  .vision-autostatus {
+    font-size: 0.8rem; color: #cbd5e1; min-height: 18px;
+  }
+  .vision-target {
+    font-size: 0.74rem; color: #94a3b8;
+  }
+  .insights-panel {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid #2d3548;
+  }
+  .insights-head {
+    display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:10px;
+  }
+  .insights-title {
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; color: #cbd5e1; text-transform: uppercase;
+  }
+  .insights-status {
+    font-size: 0.74rem; color: #94a3b8; min-height: 18px;
+  }
+  .insights-actions {
+    display:flex; gap:8px; margin-bottom:10px; flex-wrap: wrap;
+  }
+  .insights-btn {
+    border: 1px solid #334155; border-radius: 9px; padding: 8px 12px;
+    background: #0f172a; color: #e2e8f0; cursor: pointer; font-size: 0.76rem; font-weight: 700;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .insights-btn:hover { border-color: #60a5fa; background: #162130; }
+  .insights-body {
+    background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 12px 14px;
+    color: #e2e8f0; font-size: 0.84rem; line-height: 1.5; white-space: pre-wrap; min-height: 96px;
+  }
+  .insights-meta {
+    margin-top: 8px; font-size: 0.72rem; color: #94a3b8;
+  }
+  .arm-plan-panel {
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid #2d3548;
+  }
+  .arm-plan-title {
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; color: #cbd5e1; text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .arm-plan-body {
+    background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 12px 14px;
+    color: #e2e8f0; font-size: 0.82rem; line-height: 1.45; white-space: pre-wrap; min-height: 128px;
+  }
+  .arm-plan-meta {
+    margin-top: 8px; font-size: 0.72rem; color: #94a3b8;
+  }
+  .detect-selection {
+    margin-top: 12px; padding-top: 12px; border-top: 1px solid #2d3548;
+  }
+  .detect-selection-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px;
+  }
+  .detect-selection-title {
+    font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em;
+    color: #cbd5e1; text-transform: uppercase;
+  }
+  .detect-clear-btn {
+    border: 1px solid #334155; background: #0f172a; color: #cbd5e1;
+    border-radius: 8px; padding: 6px 10px; font-size: 0.72rem; font-weight: 700; cursor: pointer;
+  }
+  .detect-clear-btn:hover { border-color: #60a5fa; color: #fff; }
+  .detect-selected {
+    font-size: 0.76rem; color: #93c5fd; min-height: 18px; margin-bottom: 8px;
+  }
+  .detect-list {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .detect-item-btn {
+    border: 1px solid #334155; background: #0f172a; color: #cbd5e1;
+    border-radius: 10px; padding: 8px 10px; font-size: 0.72rem; cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .detect-item-btn:hover { border-color: #60a5fa; background: #162130; }
+  .detect-item-btn.active { border-color: #0ea5e9; background: #082f49; color: #e0f2fe; }
 
   hr.divider { border: none; border-top: 1px solid #2d3548; margin: 12px 0; }
   .mode-toggle, .motor-controls, .limit-section, .record-section, .advanced-actions { display: none !important; }
@@ -313,10 +627,10 @@
 <body>
 
 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
-  <h1>ST3215 Servo Dashboard</h1>
+  <h1>EcoSort AI</h1>
   <button id="estop-btn" onclick="emergencyStop()">&#9632; EMERGENCY STOP</button>
 </div>
-<p class="subtitle">Incremental step control with fixed joint limits for servos 1-5</p>
+<p class="subtitle">Robot arm control, vision, and paired-joint mapping dashboard</p>
 
 <div class="global-bar">
   <label>Servo Move Speed</label>
@@ -344,11 +658,173 @@
   </div>
 </div>
 
+<div class="motion-panel">
+  <div class="motion-head">
+    <div class="motion-title">Joint Motion Recorder</div>
+    <div class="motion-status" id="motion-status">Idle</div>
+  </div>
+  <div class="motion-actions">
+    <button class="motion-btn" onclick="startMotionRecord()"><strong>Start Recording</strong><span>Learn all joint movements with timestamps.</span></button>
+    <button class="motion-btn" onclick="stopMotionRecord()"><strong>Stop Recording</strong><span>Save the current motion program to disk.</span></button>
+    <button class="motion-btn" onclick="startMotionPlayback()"><strong>Playback Latest</strong><span>Replay the latest recorded joint trajectory.</span></button>
+    <button class="motion-btn" onclick="stopMotionPlayback()"><strong>Stop Playback</strong><span>Cancel the current playback immediately.</span></button>
+  </div>
+  <div class="motion-meta">
+    <span id="motion-meta-frames">Frames: 0</span>
+    <span id="motion-meta-duration">Duration: 0.0s</span>
+    <span id="motion-meta-file">File: none</span>
+  </div>
+  <div class="teach-panel">
+    <div class="teach-head">
+      <div class="teach-title">Teach Mode Motor Release</div>
+      <div class="teach-status" id="teach-status">Use release buttons to move joints by hand while recording.</div>
+    </div>
+    <div class="teach-actions">
+      <button class="teach-btn release" onclick="setAllTorque(false)">Release All Motors</button>
+      <button class="teach-btn engage" onclick="setAllTorque(true)">Engage All Motors</button>
+    </div>
+    <div class="teach-servo-grid" id="teach-servo-grid"></div>
+  </div>
+  <div class="servo-test-panel">
+    <div class="servo-test-head">
+      <div class="servo-test-title">Servo Test Buttons</div>
+      <div class="servo-test-status" id="servo-test-status">Use these to identify each servo quickly.</div>
+    </div>
+    <div class="servo-test-grid" id="servo-test-grid"></div>
+    <div class="servo6-range" id="servo6-range">Servo 6 learned range: not set</div>
+    <div class="auto-limit-status" id="auto-limit-status">Auto-limit calibrator idle</div>
+  </div>
+</div>
+
+<div class="pair-panel">
+  <div class="pair-head">
+    <div class="pair-title">Paired Joint Mapping</div>
+    <div class="pair-status" id="pair-status">Pair mapping idle</div>
+  </div>
+  <div class="pair-actions">
+    <button class="pair-btn" onclick="runPairTest()">Test Pair Mapping</button>
+    <button class="pair-btn" onclick="startPairMapping()">Start Pair Follow</button>
+    <button class="pair-btn" onclick="stopPairMapping()">Stop Pair Follow</button>
+  </div>
+  <div class="pair-grid" id="pair-grid"></div>
+  <div class="pair-meta" id="pair-meta">Leaders manual, torque off. Mapping: 8→1, 7→2, 9→3, 10→4, 11→5, 12→6.</div>
+</div>
+
+<div class="camera-panel">
+  <div class="camera-head">
+    <div class="camera-title">Live Vision</div>
+    <div class="camera-status" id="vision-status">Starting camera and Hailo runtime…</div>
+  </div>
+  <div class="camera-grid">
+    <div class="camera-card">
+      <div class="camera-card-head">
+        <div class="camera-label">Raw Camera</div>
+        <div class="camera-card-status" id="camera-status">Starting camera…</div>
+      </div>
+      <div class="camera-shell">
+        <img class="camera-feed" id="camera-feed" src="/api/camera/stream" alt="USB camera stream">
+        <div class="camera-overlay" id="camera-overlay">Connecting to camera stream…</div>
+      </div>
+      <div class="camera-meta">
+        <span class="camera-badge" id="camera-badge">Camera: pending</span>
+        <span id="camera-source">Source: auto</span>
+      </div>
+    </div>
+    <div class="camera-card">
+      <div class="camera-card-head">
+        <div class="camera-label">YOLO26 Segmentation</div>
+        <div class="camera-card-status" id="detect-status">Starting Hailo inference…</div>
+      </div>
+      <div class="camera-shell">
+        <img class="camera-feed" id="detect-feed" src="/api/detection/stream" alt="YOLO26 segmentation stream">
+        <div class="camera-overlay" id="detect-overlay">Connecting to Hailo detection stream…</div>
+      </div>
+      <div class="camera-meta">
+        <span class="camera-badge" id="detect-badge">Detector: pending</span>
+        <span class="camera-details">
+          <span id="detect-model">Model: yolo26n_seg.hef</span>
+          <span id="detect-metrics">Detections: 0</span>
+        </span>
+      </div>
+      <div class="detect-selection">
+        <div class="detect-selection-head">
+          <div class="detect-selection-title">Track This Object</div>
+          <button class="detect-clear-btn" onclick="clearDetectionSelection()">Clear Selection</button>
+        </div>
+        <div class="detect-selected" id="detect-selected">Selected target: auto</div>
+        <div class="detect-list" id="detect-list"></div>
+      </div>
+    </div>
+  </div>
+  <div class="vision-actions">
+    <div class="vision-controls">
+      <button class="vision-btn start" onclick="startAutoGrab()">Start Auto Grab</button>
+      <button class="vision-btn stop" onclick="stopAutoGrab()">Stop Auto Grab</button>
+    </div>
+    <div>
+      <div class="vision-autostatus" id="autograb-status">Auto-grab idle</div>
+      <div class="vision-target" id="autograb-target">Target: none</div>
+    </div>
+  </div>
+  <div class="insights-panel">
+    <div class="insights-head">
+      <div class="insights-title">Gemma Cloud Insights</div>
+      <div class="insights-status" id="insights-status">Idle</div>
+    </div>
+    <div class="insights-actions">
+      <button class="insights-btn" onclick="generateInsights()">Generate Insights</button>
+      <button class="insights-btn" onclick="generateArmPlan()">Generate Arm Plan</button>
+      <button class="insights-btn" onclick="applyArmPlan()">Apply Arm Plan</button>
+    </div>
+    <div class="insights-body" id="insights-body">Press Generate Insights to analyze the current live frame with the hosted Gemma model.</div>
+    <div class="insights-meta" id="insights-meta">Model: gemma-4-26b-a4b-it</div>
+    <div class="arm-plan-panel">
+      <div class="arm-plan-title">Gemini Robot Arm Output</div>
+      <div class="arm-plan-body" id="arm-plan-body">Press Generate Arm Plan to ask Gemini for a structured 6-joint target pose based on the current frame and selected detection.</div>
+      <div class="arm-plan-meta" id="arm-plan-meta">Waiting for plan</div>
+    </div>
+  </div>
+</div>
+
 <div class="grid" id="grid"></div>
 
 <script>
 const SERVO_IDS = [1, 2, 3, 4, 5, 6];
 const MAX_POS   = 4095;
+const visionStatus = document.getElementById('vision-status');
+const cameraFeed = document.getElementById('camera-feed');
+const cameraOverlay = document.getElementById('camera-overlay');
+const cameraStatus = document.getElementById('camera-status');
+const cameraBadge = document.getElementById('camera-badge');
+const cameraSource = document.getElementById('camera-source');
+const detectFeed = document.getElementById('detect-feed');
+const detectOverlay = document.getElementById('detect-overlay');
+const detectStatus = document.getElementById('detect-status');
+const detectBadge = document.getElementById('detect-badge');
+const detectModel = document.getElementById('detect-model');
+const detectMetrics = document.getElementById('detect-metrics');
+const detectSelected = document.getElementById('detect-selected');
+const detectList = document.getElementById('detect-list');
+const autograbStatus = document.getElementById('autograb-status');
+const autograbTarget = document.getElementById('autograb-target');
+const motionStatus = document.getElementById('motion-status');
+const motionMetaFrames = document.getElementById('motion-meta-frames');
+const motionMetaDuration = document.getElementById('motion-meta-duration');
+const motionMetaFile = document.getElementById('motion-meta-file');
+const teachStatus = document.getElementById('teach-status');
+const teachServoGrid = document.getElementById('teach-servo-grid');
+const servoTestStatus = document.getElementById('servo-test-status');
+const servoTestGrid = document.getElementById('servo-test-grid');
+const servo6Range = document.getElementById('servo6-range');
+const pairStatus = document.getElementById('pair-status');
+const pairGrid = document.getElementById('pair-grid');
+const pairMeta = document.getElementById('pair-meta');
+const autoLimitStatus = document.getElementById('auto-limit-status');
+const insightsStatus = document.getElementById('insights-status');
+const insightsBody = document.getElementById('insights-body');
+const insightsMeta = document.getElementById('insights-meta');
+const armPlanBody = document.getElementById('arm-plan-body');
+const armPlanMeta = document.getElementById('arm-plan-meta');
 
 const speedSlider  = document.getElementById('global-speed');
 const speedDisplay = document.getElementById('speed-display');
@@ -360,6 +836,27 @@ const localPos  = {};
 const servoMode = {};  // 0=servo, 1=motor
 const lastStatus = {};
 let playToken = 0;
+
+function buildTeachServoButtons() {
+  teachServoGrid.innerHTML = SERVO_IDS.map(sid => `
+    <button class="teach-servo-btn engaged" id="teach-servo-${sid}" onclick="toggleServoTorque(${sid})">
+      <strong>Servo ${sid}</strong>
+      <span id="teach-servo-label-${sid}">Torque engaged</span>
+    </button>
+  `).join('');
+}
+
+function buildServoTestButtons() {
+  servoTestGrid.innerHTML = SERVO_IDS.map(sid => `
+    <div class="servo-tool-card">
+      <strong>Servo ${sid}</strong>
+      <div class="servo-tool-actions">
+        <button class="servo-tool-mini" onclick="runServoTest(${sid})">Test</button>
+        <button class="servo-tool-mini limit" onclick="runAutoLimit(${sid})">Auto Set Limits</button>
+      </div>
+    </div>
+  `).join('');
+}
 
 const PLAY_POSES = {
   neutral: {1: 3200, 2: 2500, 3: 850, 4: 1150, 5: 2550, 6: 3600},
@@ -755,6 +1252,460 @@ function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function startMotionRecord() {
+  const res = await fetch('/api/motion_program/start_record', { method: 'POST' });
+  const data = await res.json();
+  motionStatus.textContent = data.message || 'Recording motion...';
+}
+
+async function stopMotionRecord() {
+  const res = await fetch('/api/motion_program/stop_record', { method: 'POST' });
+  const data = await res.json();
+  motionStatus.textContent = data.message || 'Recording stopped';
+}
+
+async function startMotionPlayback() {
+  const res = await fetch('/api/motion_program/start_playback', { method: 'POST' });
+  const data = await res.json();
+  motionStatus.textContent = data.playback_message || 'Playback started';
+}
+
+async function stopMotionPlayback() {
+  const res = await fetch('/api/motion_program/stop_playback', { method: 'POST' });
+  const data = await res.json();
+  motionStatus.textContent = data.playback_message || 'Playback stopped';
+}
+
+async function pollMotionProgramStatus() {
+  try {
+    const res = await fetch('/api/motion_program/status');
+    const data = await res.json();
+    if (data.recording) {
+      motionStatus.textContent = data.message || 'Recording joint motion...';
+    } else if (data.playback_active) {
+      motionStatus.textContent = data.playback_message || 'Playback active';
+    } else {
+      motionStatus.textContent = data.playback_message && data.playback_message !== 'Idle'
+        ? data.playback_message
+        : (data.message || 'Idle');
+    }
+    motionMetaFrames.textContent = `Frames: ${data.last_frame_count ?? 0}`;
+    motionMetaDuration.textContent = `Duration: ${((data.last_duration_ms ?? 0) / 1000).toFixed(1)}s`;
+    motionMetaFile.textContent = `File: ${data.last_path ? data.last_path.split('/').pop() : 'none'}`;
+    if (data.servo6_min != null && data.servo6_max != null) {
+      servo6Range.textContent = `Servo 6 learned range: min ${data.servo6_min} · max ${data.servo6_max}`;
+    } else {
+      servo6Range.textContent = 'Servo 6 learned range: not set';
+    }
+  } catch (err) {
+    motionStatus.textContent = 'Motion recorder status unavailable';
+  }
+  setTimeout(pollMotionProgramStatus, 1000);
+}
+
+async function runServoTest(sid) {
+  try {
+    const res = await fetch(`/api/servo_test/${sid}`, { method: 'POST' });
+    const data = await res.json();
+    servoTestStatus.textContent = data.message || `Testing servo ${sid}...`;
+  } catch (err) {
+    servoTestStatus.textContent = `Failed to start servo ${sid} test`;
+  }
+}
+
+async function pollServoTestStatus() {
+  try {
+    const res = await fetch('/api/servo_test/status');
+    const data = await res.json();
+    servoTestStatus.textContent = data.message || 'Use these to identify each servo quickly.';
+  } catch (err) {
+    servoTestStatus.textContent = 'Servo test status unavailable';
+  }
+  setTimeout(pollServoTestStatus, 1000);
+}
+
+async function runAutoLimit(sid) {
+  try {
+    const res = await fetch(`/api/auto_limit/${sid}`, { method: 'POST' });
+    const data = await res.json();
+    autoLimitStatus.textContent = data.message || `Learning joint limits for servo ${sid}...`;
+  } catch (err) {
+    autoLimitStatus.textContent = `Failed to start auto-limit calibration for servo ${sid}`;
+  }
+}
+
+async function pollAutoLimitStatus() {
+  try {
+    const res = await fetch('/api/auto_limit/status');
+    const data = await res.json();
+    autoLimitStatus.textContent = data.message || 'Auto-limit calibrator idle';
+  } catch (err) {
+    autoLimitStatus.textContent = 'Auto-limit status unavailable';
+  }
+  setTimeout(pollAutoLimitStatus, 1000);
+}
+
+function renderPairRows(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    pairGrid.innerHTML = '<div class="pair-card"><strong>No pair data</strong><div class="pair-line">Waiting for telemetry.</div></div>';
+    return;
+  }
+  pairGrid.innerHTML = rows.map(row => {
+    const online = row.source_online && row.target_online;
+    const delta = typeof row.delta_deg === 'number' ? Math.abs(row.delta_deg) : null;
+    const modeOk = row.target_mode === 0;
+    const leaderTorqueOk = row.source_torque_enabled === false;
+    const rangeReady = (row.mapping_mode === 'normalized') || ((row.source_span_raw ?? 0) > 0);
+    const cls = !online || !modeOk || !leaderTorqueOk ? 'bad' : (delta != null && delta <= 4 ? 'good' : (delta != null && delta <= 12 ? 'warn' : 'bad'));
+    const sourceAngle = row.source_angle_deg != null ? `${row.source_angle_deg.toFixed(1)}°` : '—';
+    const targetAngle = row.target_angle_deg != null ? `${row.target_angle_deg.toFixed(1)}°` : '—';
+    const mappedAngle = row.mapped_target_angle_deg != null ? `${row.mapped_target_angle_deg.toFixed(1)}°` : '—';
+    const deltaText = row.delta_deg != null ? `${row.delta_deg.toFixed(1)}°` : '—';
+    const sourceRange = row.source_range_deg != null ? `${row.source_range_deg.toFixed(1)}°` : '—';
+    const targetRange = row.target_range_deg != null ? `${row.target_range_deg.toFixed(1)}°` : '—';
+    const direction = row.inverted ? 'mirrored' : 'same';
+    return `
+      <div class="pair-card ${cls}">
+        <strong>J${row.source_id} → J${row.target_id}</strong>
+        <div class="pair-line">Source angle: ${sourceAngle}</div>
+        <div class="pair-line">Target angle: ${targetAngle}</div>
+        <div class="pair-line">Mapped target: ${mappedAngle}</div>
+        <div class="pair-line">Angle delta: ${deltaText}</div>
+        <div class="pair-line">Mapping mode: ${row.mapping_mode}</div>
+        <div class="pair-line">Direction: ${direction}</div>
+        <div class="pair-line">Source span: ${row.source_span_raw ?? '—'} raw (${row.source_window_kind})</div>
+        <div class="pair-line">Target span: ${row.target_span_raw ?? '—'} raw (${row.target_window_kind})</div>
+        <div class="pair-line">Source range: ${sourceRange}</div>
+        <div class="pair-line">Target range: ${targetRange}</div>
+        <div class="pair-line">Leader torque: ${leaderTorqueOk ? 'off' : 'on'}</div>
+        <div class="pair-line">Follower mode: ${modeOk ? 'servo' : 'not servo'}</div>
+        <div class="pair-line">Ready: ${online && modeOk && leaderTorqueOk && rangeReady ? 'yes' : 'check setup'}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function runPairTest() {
+  try {
+    const res = await fetch('/api/pair_mapping/test', { method: 'POST' });
+    const data = await res.json();
+    pairStatus.textContent = data.message || 'Pair mapping test complete';
+  } catch (err) {
+    pairStatus.textContent = 'Failed to run pair mapping test';
+  }
+}
+
+async function startPairMapping() {
+  try {
+    const res = await fetch('/api/pair_mapping/start', { method: 'POST' });
+    const data = await res.json();
+    pairStatus.textContent = data.message || 'Pair mapping running';
+  } catch (err) {
+    pairStatus.textContent = 'Failed to start pair mapping';
+  }
+}
+
+async function stopPairMapping() {
+  try {
+    const res = await fetch('/api/pair_mapping/stop', { method: 'POST' });
+    const data = await res.json();
+    pairStatus.textContent = data.message || 'Pair mapping stopped';
+  } catch (err) {
+    pairStatus.textContent = 'Failed to stop pair mapping';
+  }
+}
+
+async function pollPairMappingStatus() {
+  try {
+    const res = await fetch('/api/pair_mapping/status');
+    const data = await res.json();
+    pairStatus.textContent = data.message || 'Pair mapping idle';
+    renderPairRows(data.pairs || []);
+    const test = data.last_test || null;
+    if (test) {
+      pairMeta.textContent =
+        `Mapping 8→1, 7→2, 9→3, 10→4, 11→5, 12→6 · Last test ${test.tested_at} · ` +
+        `max angle delta ${test.max_angle_delta_deg ?? '—'}° · ` +
+        `max observed range delta ${test.max_observed_range_delta_deg ?? '—'}°`;
+    } else {
+      pairMeta.textContent = 'Leaders manual, torque off. Mapping: 8→1, 7→2, 9→3, 10→4, 11→5, 12→6.';
+    }
+  } catch (err) {
+    pairStatus.textContent = 'Pair mapping status unavailable';
+  }
+  setTimeout(pollPairMappingStatus, 1200);
+}
+
+async function generateInsights() {
+  try {
+    const res = await fetch('/api/insights/generate', { method: 'POST' });
+    const data = await res.json();
+    insightsStatus.textContent = data.message || 'Generating Gemma insights...';
+    if (data.busy) {
+      insightsBody.textContent = 'Gemma is analyzing the current frame...';
+    }
+  } catch (err) {
+    insightsStatus.textContent = 'Failed to start insight generation';
+  }
+}
+
+async function generateArmPlan() {
+  try {
+    const res = await fetch('/api/insights/generate_arm_plan', { method: 'POST' });
+    const data = await res.json();
+    insightsStatus.textContent = data.message || 'Generating robot arm plan...';
+    armPlanBody.textContent = 'Gemini is building a 6-joint arm plan from the current frame...';
+  } catch (err) {
+    insightsStatus.textContent = 'Failed to start robot arm plan generation';
+  }
+}
+
+async function applyArmPlan() {
+  try {
+    const res = await fetch('/api/insights/apply_arm_plan', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok || data.ok === false) {
+      throw new Error(data.error || 'Failed to apply arm plan');
+    }
+    insightsStatus.textContent = data.message || 'Applied robot arm plan';
+    armPlanMeta.textContent = `Applied at ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    insightsStatus.textContent = err.message || 'Failed to apply robot arm plan';
+  }
+}
+
+function renderArmPlan(plan) {
+  if (!plan || !Array.isArray(plan.joints)) return '';
+  const lines = [];
+  lines.push(`Action: ${plan.action || 'hold'}`);
+  lines.push(`Target: ${plan.target_object || 'unknown'}`);
+  if (plan.scene_summary) lines.push(`Scene: ${plan.scene_summary}`);
+  if (plan.notes) lines.push(`Notes: ${plan.notes}`);
+  lines.push('');
+  for (const joint of plan.joints) {
+    lines.push(`J${joint.id}: ${joint.angle_deg} deg -> raw ${joint.raw_target}${joint.reason ? ` | ${joint.reason}` : ''}`);
+  }
+  return lines.join('\n');
+}
+
+async function pollInsightsStatus() {
+  try {
+    const res = await fetch('/api/insights/status');
+    const data = await res.json();
+    insightsStatus.textContent = data.busy ? (data.message || 'Generating...') : (data.message || 'Idle');
+    insightsMeta.textContent = `Model: ${data.model || 'gemma4:e2b'}${data.updated_at ? ` · Updated ${data.updated_at}` : ''}`;
+    if (data.result) {
+      insightsBody.textContent = data.result;
+    } else if (data.error) {
+      insightsBody.textContent = `Insight generation failed: ${data.error}`;
+    }
+    if (data.arm_plan) {
+      armPlanBody.textContent = renderArmPlan(data.arm_plan);
+      armPlanMeta.textContent = `Speed: ${data.arm_plan.speed || '-'}${data.arm_plan_updated_at ? ` · Updated ${data.arm_plan_updated_at}` : ''}`;
+    } else if (data.arm_plan_error) {
+      armPlanBody.textContent = `Arm plan generation failed: ${data.arm_plan_error}`;
+      armPlanMeta.textContent = 'Plan unavailable';
+    }
+  } catch (err) {
+    insightsStatus.textContent = 'Insight status unavailable';
+  }
+  setTimeout(pollInsightsStatus, 1500);
+}
+
+function updateTeachServoButton(sid, engaged) {
+  const btn = document.getElementById(`teach-servo-${sid}`);
+  const label = document.getElementById(`teach-servo-label-${sid}`);
+  if (!btn || !label) return;
+  btn.classList.toggle('engaged', engaged);
+  btn.classList.toggle('released', !engaged);
+  label.textContent = engaged ? 'Torque engaged' : 'Released for hand teaching';
+}
+
+async function setAllTorque(enable) {
+  try {
+    await fetch('/api/torque_all', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ enable })
+    });
+    teachStatus.textContent = enable ? 'All motors engaged' : 'All motors released for teaching';
+    SERVO_IDS.forEach(sid => updateTeachServoButton(sid, enable));
+  } catch (err) {
+    teachStatus.textContent = 'Failed to update all motor torque';
+  }
+}
+
+async function toggleServoTorque(sid) {
+  const engaged = (lastStatus[sid]?.torque_enabled ?? true);
+  const next = !engaged;
+  try {
+    await fetch('/api/torque', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ id: sid, enable: next })
+    });
+    if (!lastStatus[sid]) lastStatus[sid] = {};
+    lastStatus[sid].torque_enabled = next;
+    updateTeachServoButton(sid, next);
+    teachStatus.textContent = next ? `Servo ${sid} engaged` : `Servo ${sid} released for hand teaching`;
+  } catch (err) {
+    teachStatus.textContent = `Failed to update servo ${sid} torque`;
+  }
+}
+
+async function pollCameraStatus() {
+  try {
+    const res = await fetch('/api/camera/status');
+    const data = await res.json();
+    const statusText = data.ready
+      ? `Live${data.frame_age_s != null ? ` · ${data.frame_age_s}s ago` : ''}`
+      : (data.error || 'Connecting to camera');
+
+    cameraStatus.textContent = statusText;
+    cameraSource.textContent = `Source: ${data.source || data.configured_source || 'auto'}`;
+    cameraBadge.textContent = data.ready ? 'Camera: live' : 'Camera: waiting';
+    cameraBadge.className = `camera-badge${data.ready ? ' ready' : (data.error ? ' error' : '')}`;
+    cameraOverlay.textContent = data.ready ? '' : statusText;
+    cameraOverlay.style.display = data.ready ? 'none' : 'flex';
+    visionStatus.textContent = data.ready ? 'Camera live' : statusText;
+  } catch (err) {
+    cameraStatus.textContent = 'Camera status unavailable';
+    cameraBadge.textContent = 'Camera: error';
+    cameraBadge.className = 'camera-badge error';
+    cameraOverlay.textContent = 'Could not reach the camera status endpoint';
+    cameraOverlay.style.display = 'flex';
+    visionStatus.textContent = 'Camera status unavailable';
+  }
+  setTimeout(pollCameraStatus, 2000);
+}
+
+cameraFeed.addEventListener('error', () => {
+  cameraOverlay.textContent = 'Camera stream failed to load';
+  cameraOverlay.style.display = 'flex';
+});
+
+async function pollDetectionStatus() {
+  try {
+    const res = await fetch('/api/detection/status');
+    const data = await res.json();
+    const statusText = data.ready
+      ? `Live${data.latency_ms != null ? ` · ${data.latency_ms} ms` : ''}${data.fps != null ? ` · ${data.fps} FPS` : ''}`
+      : (data.error || 'Connecting to Hailo runtime');
+
+    detectStatus.textContent = statusText;
+    detectModel.textContent = `Model: ${data.model || 'yolo26n_seg.hef'}`;
+    detectMetrics.textContent = `Detections: ${data.detections ?? 0}${data.hailo_ms != null ? ` · Hailo ${data.hailo_ms} ms` : ''}`;
+    detectBadge.textContent = data.ready ? 'Detector: live' : 'Detector: waiting';
+    detectBadge.className = `camera-badge${data.ready ? ' ready' : (data.error ? ' error' : '')}`;
+    detectOverlay.textContent = data.ready ? '' : statusText;
+    detectOverlay.style.display = data.ready ? 'none' : 'flex';
+    if (data.selection_active && data.selected_target) {
+      detectSelected.textContent =
+        `Selected target: ${data.selected_target.cls_name} · conf ${data.selected_target.conf} · area ${data.selected_target.area_ratio}`;
+    } else {
+      detectSelected.textContent = 'Selected target: auto';
+    }
+    renderDetectionList(data.detections_data || [], data.selected_target || null);
+    if (data.ready) {
+      visionStatus.textContent = `Camera + Hailo live · ${data.detections ?? 0} detections`;
+    }
+  } catch (err) {
+    detectStatus.textContent = 'Detector status unavailable';
+    detectBadge.textContent = 'Detector: error';
+    detectBadge.className = 'camera-badge error';
+    detectOverlay.textContent = 'Could not reach the detection status endpoint';
+    detectOverlay.style.display = 'flex';
+    detectSelected.textContent = 'Selected target: unavailable';
+    detectList.innerHTML = '';
+  }
+  setTimeout(pollDetectionStatus, 2000);
+}
+
+detectFeed.addEventListener('error', () => {
+  detectOverlay.textContent = 'Detection stream failed to load';
+  detectOverlay.style.display = 'flex';
+});
+
+function renderDetectionList(detections, selectedTarget) {
+  if (!detections.length) {
+    detectList.innerHTML = '<span class="vision-target">No detections available</span>';
+    return;
+  }
+  const selectedKey = selectedTarget
+    ? `${selectedTarget.cls_name}:${Math.round(selectedTarget.cx)}:${Math.round(selectedTarget.cy)}`
+    : null;
+  detectList.innerHTML = detections.map((det, index) => {
+    const itemKey = `${det.cls_name}:${Math.round(det.cx)}:${Math.round(det.cy)}`;
+    const active = selectedKey && itemKey === selectedKey ? ' active' : '';
+    return `<button class="detect-item-btn${active}" onclick="selectDetection(${index})">${index + 1}. ${det.cls_name} ${det.conf.toFixed(2)} · area ${det.area_ratio}</button>`;
+  }).join('');
+}
+
+async function selectDetection(index) {
+  try {
+    const res = await fetch('/api/detection/select', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ index })
+    });
+    const data = await res.json();
+    if (!data.ok) {
+      detectSelected.textContent = `Selection failed: ${data.error || 'unknown error'}`;
+      return;
+    }
+    detectSelected.textContent = `Selected target: ${data.selected_target.cls_name} · conf ${data.selected_target.conf}`;
+  } catch (err) {
+    detectSelected.textContent = 'Selection failed';
+  }
+}
+
+async function clearDetectionSelection() {
+  try {
+    await fetch('/api/detection/clear_selection', { method: 'POST' });
+    detectSelected.textContent = 'Selected target: auto';
+  } catch (err) {
+    detectSelected.textContent = 'Failed to clear selection';
+  }
+}
+
+async function startAutoGrab() {
+  try {
+    const res = await fetch('/api/autograb/start', { method: 'POST' });
+    const data = await res.json();
+    autograbStatus.textContent = data.message || 'Auto-grab started';
+  } catch (err) {
+    autograbStatus.textContent = 'Failed to start auto-grab';
+  }
+}
+
+async function stopAutoGrab() {
+  try {
+    const res = await fetch('/api/autograb/stop', { method: 'POST' });
+    const data = await res.json();
+    autograbStatus.textContent = data.message || 'Auto-grab stopped';
+  } catch (err) {
+    autograbStatus.textContent = 'Failed to stop auto-grab';
+  }
+}
+
+async function pollAutoGrabStatus() {
+  try {
+    const res = await fetch('/api/autograb/status');
+    const data = await res.json();
+    autograbStatus.textContent = `${data.state || 'idle'} · ${data.message || ''}`;
+    if (data.target) {
+      autograbTarget.textContent =
+        `Target: ${data.target.cls_name} · conf ${data.target.conf} · center (${Math.round(data.target.cx)}, ${Math.round(data.target.cy)}) · area ${data.target.area_ratio}`;
+    } else {
+      autograbTarget.textContent = 'Target: none';
+    }
+  } catch (err) {
+    autograbStatus.textContent = 'Auto-grab status unavailable';
+    autograbTarget.textContent = 'Target: none';
+  }
+  setTimeout(pollAutoGrabStatus, 1000);
+}
+
 function clampRawToStatus(sid, raw) {
   const s = lastStatus[sid];
   if (!s) return raw;
@@ -843,6 +1794,9 @@ async function releaseTorque(sid) {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ id: sid, enable: false })
   });
+  if (!lastStatus[sid]) lastStatus[sid] = {};
+  lastStatus[sid].torque_enabled = false;
+  updateTeachServoButton(sid, false);
   document.getElementById(`release-${sid}`).style.display = 'none';
   document.getElementById(`engage-${sid}`).style.display  = '';
   document.getElementById(`minus-${sid}`).disabled = true;
@@ -855,6 +1809,9 @@ async function engageTorque(sid) {
     method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ id: sid, enable: true })
   });
+  if (!lastStatus[sid]) lastStatus[sid] = {};
+  lastStatus[sid].torque_enabled = true;
+  updateTeachServoButton(sid, true);
   document.getElementById(`engage-${sid}`).style.display  = 'none';
   document.getElementById(`release-${sid}`).style.display = '';
   document.getElementById(`minus-${sid}`).disabled = false;
@@ -1101,6 +2058,7 @@ async function poll() {
       if (servoMode[sid] !== s.mode) applyModeUI(sid, s.mode);
 
       const isMotor = s.mode === 1;
+      updateTeachServoButton(sid, s.torque_enabled !== false);
       card.className = `card online${s.moving ? ' moving' : ''}${isMotor ? ' motor-mode' : ''}`;
       dot.className  = s.moving ? 'status-dot moving' : 'status-dot online';
 
@@ -1166,7 +2124,17 @@ async function poll() {
   setTimeout(poll, 200);
 }
 
+buildTeachServoButtons();
+buildServoTestButtons();
 poll();
+pollMotionProgramStatus();
+pollServoTestStatus();
+pollAutoLimitStatus();
+pollPairMappingStatus();
+pollInsightsStatus();
+pollCameraStatus();
+pollDetectionStatus();
+pollAutoGrabStatus();
 </script>
 </body>
 </html>
